@@ -77,9 +77,9 @@ def run_spades(output, threads, sample1, sample2):
         subprocess.call([f"rm -rf {output}/5.spades"], shell=True)
     subprocess.call([f"mkdir {output}/5.spades"], shell=True)
     print(
-        f"spades.py –meta -1 {output}/3.bowtie2/{sample1}.fastq -2 {output}/3.bowtie2/{sample2}.fastq -t {threads} -o {output}/5.spades")
+        f"spades.py --meta -1 {output}/3.bowtie2/{sample1}.fastq -2 {output}/3.bowtie2/{sample2}.fastq -t {threads} -o {output}/5.spades")
     ret = subprocess.call([
-        f"spades.py –meta -1 {output}/3.bowtie2/{sample1}.fastq -2 {output}/3.bowtie2/{sample2}.fastq -t {threads} -o {output}/5.spades"],
+        f"spades.py --meta -1 {output}/3.bowtie2/{sample1}.fastq -2 {output}/3.bowtie2/{sample2}.fastq -t {threads} -o {output}/5.spades"],
         shell=True)
     if ret != 0:
         sys.exit("Error: spades error")
