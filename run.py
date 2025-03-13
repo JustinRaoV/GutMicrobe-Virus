@@ -122,34 +122,33 @@ if __name__ == '__main__':
 
             # filter blastn results and integrate them with virsorter results
     print("all down break")
-    # break
-    # if log < 9:
-    #     run_combination(output)
-    #     log = 9
-    #     with open(f"{output}/log.txt", "w") as f:
-    #         f.write(f"{log}\n")
-    #
-    #         # drop viral contigs with low quality or low completeness with checkv
-    # if log < 10:
-    #     run_checkv(output, threads)
-    #     log = 10
-    #     with open(f"{output}/log.txt", "w") as f:
-    #         f.write(f"{log}\n")
-    #
-    # if log < 11:
-    #     high_quality_output(output)
-    #     log = 11
-    #     with open(f"{output}/log.txt", "w") as f:
-    #         f.write(f"{log}\n")
-    #
-    #         # cluster contigs and get final non-redundant contigs
-    # if log < 12:
-    #     run_vsearch_2(output, threads)
-    #     log = 12
-    #     with open(f"{output}/log.txt", "w") as f:
-    #         f.write(f"{log}\n")
-    #
-    # print("all steps finished")
-    #
-    # if args.remove_inter_result == True:
-    #     remove_inter_result(output)
+    if log < 9:
+        run_combination(output)
+        log = 9
+        with open(f"{output}/log.txt", "w") as f:
+            f.write(f"{log}\n")
+
+            # drop viral contigs with low quality or low completeness with checkv
+    if log < 10:
+        run_checkv(output, threads)
+        log = 10
+        with open(f"{output}/log.txt", "w") as f:
+            f.write(f"{log}\n")
+
+    if log < 11:
+        high_quality_output(output)
+        log = 11
+        with open(f"{output}/log.txt", "w") as f:
+            f.write(f"{log}\n")
+
+            # cluster contigs and get final non-redundant contigs
+    if log < 12:
+        run_vsearch_2(output, threads)
+        log = 12
+        with open(f"{output}/log.txt", "w") as f:
+            f.write(f"{log}\n")
+
+    print("all steps finished")
+
+    if args.remove_inter_result == True:
+        remove_inter_result(output)

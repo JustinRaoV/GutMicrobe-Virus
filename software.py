@@ -2,6 +2,7 @@ import subprocess
 import os
 import sys
 import pandas as pd
+from tools import *
 
 
 def run_fastqc(output, input1, input2, threads):
@@ -101,7 +102,7 @@ def run_vsearch_1(output, sample):
 def run_virsorter(output, threads):
     print("Run virsorter")
     sofware = "/cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/miniconda3/envs/viroprofiler-virsorter2/virsorter/bin/"
-    db = db = "/cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/db"  # db
+    db = "/cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/db"  # db
     if os.path.exists(f"{output}/7.vircontigs") is True:
         subprocess.call([f"rm -rf {output}/7.vircontigs"], shell=True)
     subprocess.call([f"mkdir {output}/7.vircontigs"], shell=True)
@@ -131,42 +132,88 @@ def run_virsorter(output, threads):
 
 def run_blastn(output, threads):
     print("Run blastn Sorry")
-    return 0
+    db = "/cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/db"
     if os.path.exists(f"{output}/8.blastncontigs") is True:
         subprocess.call([f"rm -rf {output}/8.blastncontigs"], shell=True)
     subprocess.call([f"mkdir {output}/8.blastncontigs"], shell=True)
     print(
-        f'blastn -query {output}/6.filter/contig_1k.fasta -db {sys.path[0]}/blastn_database/crass -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/crass.out')
+        f'blastn -query {output}/6.filter/contig_1k.fasta -db {db}/blastn_database/crass -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/crass.out')
     ret = subprocess.call([
-        f'blastn -query {output}/6.filter/contig_1k.fasta -db {sys.path[0]}/blastn_database/crass -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/crass.out'],
+        f'blastn -query {output}/6.filter/contig_1k.fasta -db {db}/blastn_database/crass -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/crass.out'],
         shell=True)
     if ret != 0:
         sys.exit("blastn error")
     print(
-        f'blastn -query {output}/6.filter/contig_1k.fasta -db {sys.path[0]}/blastn_database/gpd -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/gpd.out')
+        f'blastn -query {output}/6.filter/contig_1k.fasta -db {db}/blastn_database/gpd -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/gpd.out')
     ret = subprocess.call([
-        f'blastn -query {output}/6.filter/contig_1k.fasta -db {sys.path[0]}/blastn_database/gpd -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/gpd.out'],
+        f'blastn -query {output}/6.filter/contig_1k.fasta -db {db}/blastn_database/gpd -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/gpd.out'],
         shell=True)
     if ret != 0:
         sys.exit("blastn error")
     print(
-        f'blastn -query {output}/6.filter/contig_1k.fasta -db {sys.path[0]}/blastn_database/gvd -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/gvd.out')
+        f'blastn -query {output}/6.filter/contig_1k.fasta -db {db}/blastn_database/gvd -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/gvd.out')
     ret = subprocess.call([
-        f'blastn -query {output}/6.filter/contig_1k.fasta -db {sys.path[0]}/blastn_database/gvd -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/gvd.out'],
+        f'blastn -query {output}/6.filter/contig_1k.fasta -db {db}/blastn_database/gvd -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/gvd.out'],
         shell=True)
     if ret != 0:
         sys.exit("blastn error")
     print(
-        f'blastn -query {output}/6.filter/contig_1k.fasta -db {sys.path[0]}/blastn_database/mgv -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/mgv.out')
+        f'blastn -query {output}/6.filter/contig_1k.fasta -db {db}/blastn_database/mgv -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/mgv.out')
     ret = subprocess.call([
-        f'blastn -query {output}/6.filter/contig_1k.fasta -db {sys.path[0]}/blastn_database/mgv -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/mgv.out'],
+        f'blastn -query {output}/6.filter/contig_1k.fasta -db {db}/blastn_database/mgv -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/mgv.out'],
         shell=True)
     if ret != 0:
         sys.exit("blastn error")
     print(
-        f'blastn -query {output}/6.filter/contig_1k.fasta -db {sys.path[0]}/blastn_database/ncbi -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/ncbi.out')
+        f'blastn -query {output}/6.filter/contig_1k.fasta -db {db}/blastn_database/ncbi -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/ncbi.out')
     ret = subprocess.call([
-        f'blastn -query {output}/6.filter/contig_1k.fasta -db {sys.path[0]}/blastn_database/ncbi -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/ncbi.out'],
+        f'blastn -query {output}/6.filter/contig_1k.fasta -db {db}/blastn_database/ncbi -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/ncbi.out'],
         shell=True)
     if ret != 0:
         sys.exit("Error: blastn error")
+
+
+def run_combination(output):
+    print("Combine virsorter and blastn results")
+    if os.path.exists(f"{output}/9.final-contigs") is True:
+        subprocess.call([f"rm -rf {output}/9.final-contigs"], shell=True)
+    subprocess.call([f"mkdir {output}/9.final-contigs"], shell=True)
+    ret = filter_vircontig(output)
+    if ret != 0:
+        sys.exit("Error: combine error")
+
+def run_checkv(output, threads):
+    sofware = "/cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/miniconda3/envs/viroprofiler-virsorter2/virsorter/bin/"
+    db = "/cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/db"  # db
+    print("Run checkv")
+    if os.path.exists(f"{output}/10.checkv") is True:
+        subprocess.call([f"rm -rf {output}/10.checkv"], shell=True)
+    subprocess.call([f"mkdir {output}/10.checkv"], shell=True)
+    print(
+        f"checkv end_to_end {output}/9.final-contigs/contigs.fa {output}/10.checkv -d {sys.path[0]}/checkv_database -t {threads}")
+    ret = subprocess.call([
+        f"{sofware}checkv end_to_end {output}/9.final-contigs/contigs.fa {output}/10.checkv -d {db}/checkvdb/checkv-db-v1.0 -t {threads}"],
+        shell=True)
+    if ret != 0:
+        sys.exit("Error: checkv error")
+
+def high_quality_output(output):
+    print("Get final output")
+    if os.path.exists(f"{output}/11.high_quality") is True:
+        subprocess.call([f"rm -rf {output}/11.high_quality"], shell=True)
+    subprocess.call([f"mkdir {output}/11.high_quality"], shell=True)
+    filter_checkv(output)
+
+def run_vsearch_2(output, threads):
+    print("Run vsearch (cluster)")
+    if os.path.exists(f"{output}/12.final_non_dup") is True:
+        subprocess.call([f"rm -rf {output}/12.final_non_dup"], shell=True)
+    subprocess.call([f"mkdir {output}/12.final_non_dup"], shell=True)
+    print(
+        f"vsearch --cluster_fast {output}/11.high_quality/contigs.fa --id 0.995 --centroids {output}/12.final_non_dup/final.fasta --uc {output}/11.high_quality/clusters.uc --maxseqlength -1 --threads {threads}")
+    ret = subprocess.call([
+        f"vsearch --cluster_fast {output}/11.high_quality/contigs.fa --id 0.995 --centroids {output}/12.final_non_dup/final.fasta --uc {output}/11.high_quality/clusters.uc --maxseqlength -1 --threads {threads}"],
+        shell=True)
+    if ret != 0:
+        sys.exit("Error: vsearch error")
+    final_info(output)
