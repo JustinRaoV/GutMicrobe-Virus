@@ -101,21 +101,35 @@ def run_vsearch_1(output, sample):
 
 def run_virsorter(output, threads):
     print("Run virsorter")
-    sofware = "/cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/miniconda3/envs/viroprofiler-virsorter2/virsorter/bin/"
     db = "/cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/db"  # db
     if os.path.exists(f"{output}/7.vircontigs") is True:
         subprocess.call([f"rm -rf {output}/7.vircontigs"], shell=True)
     subprocess.call([f"mkdir {output}/7.vircontigs"], shell=True)
     print(f"virsorter run -w {output}/7.vircontigs -i {output}/6.filter/contig_1k.fasta -j {threads} all")
-    ret = subprocess.call(
-        [
-            f"{sofware}virsorter run --keep-original-seq -w {output}/7.vircontigs/vs2-pass1 -include-groups dsDNAphage,ssDNA --min-length 5000 --min-score 0.5 -i {output}/6.filter/contig_1k.fasta -j {threads}  -d {db}/virsorter2 all"],
-        shell=True)
+    script = f"""
+module unload CentOS/7.9/Anaconda3/24.5.0&&\
+source activate /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/miniconda3/envs/viroprofiler-virsorter2 && \
+virsorter run \
+    --keep-original-seq \
+    -w {output}/7.vircontigs/vs2-pass1 \
+    --include-groups dsDNAphage,ssDNA \
+    --min-length 5000 \
+    --min-score 0.5 \
+    -i {output}/6.filter/contig_1k.fasta \
+    -j {threads} \
+    -d {db}/virsorter2 \
+    all
+"""
+    ret = subprocess.call(script, shell=True)
+    if ret != 0:
+        sys.exit("Error: virsorter error")
     print(f"VIR-SOP1")
     ret = subprocess.call(
         [
-            f"{sofware}checkv end_to_end {output}/7.vircontigs/vs2-pass1/final-viral-combined.fa checkv -t {threads}  -d {db}/checkvdb/checkv-db-v1.0 "],
+            f"checkv end_to_end {output}/7.vircontigs/vs2-pass1/final-viral-combined.fa {output}/7.vircontigs/checkv -t {threads}  -d {db}/checkvdb/checkv-db-v1.0 "],
         shell=True)
+    if ret != 0:
+        sys.exit("Error: virsorter error")
     ret = subprocess.call(
         [
             f"cat {output}/7.vircontigs/checkv/proviruses.fna {output}/7.vircontigs/checkv/viruses.fna > {output}/7.vircontigs/checkv/combined.fna "],
@@ -123,9 +137,10 @@ def run_virsorter(output, threads):
     print(f"VIR-SOP2")
     ret = subprocess.call(
         [
-            f"{sofware}virsorter run --seqname-suffix-off --viral-gene-enrich-off --prep-for-dramv -i {output}/7.vircontigs/checkv/combined.fna -w {output}/7.vircontigs --include-groups dsDNAphage,ssDNA --min-length 5000 --min-score 0.5 -d {db}/virsorter2 all"],
+            f"module unload CentOS/7.9/Anaconda3/24.5.0&&\
+source activate /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/miniconda3/envs/viroprofiler-virsorter2 && \
+virsorter run --seqname-suffix-off --viral-gene-enrich-off --prep-for-dramv -i {output}/7.vircontigs/checkv/combined.fna -w {output}/7.vircontigs --include-groups dsDNAphage,ssDNA --min-length 5000 --min-score 0.5 -d {db}/virsorter2 all"],
         shell=True)
-
     if ret != 0:
         sys.exit("Error: virsorter error")
 
@@ -182,8 +197,8 @@ def run_combination(output):
     if ret != 0:
         sys.exit("Error: combine error")
 
+
 def run_checkv(output, threads):
-    sofware = "/cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/miniconda3/envs/viroprofiler-virsorter2/virsorter/bin/"
     db = "/cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/db"  # db
     print("Run checkv")
     if os.path.exists(f"{output}/10.checkv") is True:
@@ -192,10 +207,11 @@ def run_checkv(output, threads):
     print(
         f"checkv end_to_end {output}/9.final-contigs/contigs.fa {output}/10.checkv -d {sys.path[0]}/checkv_database -t {threads}")
     ret = subprocess.call([
-        f"{sofware}checkv end_to_end {output}/9.final-contigs/contigs.fa {output}/10.checkv -d {db}/checkvdb/checkv-db-v1.0 -t {threads}"],
+        f"checkv end_to_end {output}/9.final-contigs/contigs.fa {output}/10.checkv -d {db}/checkvdb/checkv-db-v1.0 -t {threads}"],
         shell=True)
     if ret != 0:
         sys.exit("Error: checkv error")
+
 
 def high_quality_output(output):
     print("Get final output")
@@ -203,6 +219,7 @@ def high_quality_output(output):
         subprocess.call([f"rm -rf {output}/11.high_quality"], shell=True)
     subprocess.call([f"mkdir {output}/11.high_quality"], shell=True)
     filter_checkv(output)
+
 
 def run_vsearch_2(output, threads):
     print("Run vsearch (cluster)")
