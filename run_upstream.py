@@ -3,7 +3,7 @@ import os
 import sys
 import pandas as pd
 from tools import *
-from software import *
+from up_software import *
 
 
 def parameter_input():
@@ -66,7 +66,7 @@ if __name__ == '__main__':
             adapter = f"{db}/adapters/TruSeq2-PE.fa"
         else:
             adapter = f"{db}/adapters/NexteraPE-PE.fa"
-        run_trim(output, threads, args.input1, args.input2, sample1, sample2, adapter)
+        run_trim(output, threads, args.input1, args.input2, sample1, sample2, adapter, sample)
         log = 2
         with open(f"{output}/log.txt", "w") as f:
             f.write(f"{log}\n")
@@ -94,7 +94,7 @@ if __name__ == '__main__':
 
             # assemble contigs with spades
     if log < 5:
-        run_spades(output, threads, sample1, sample2)
+        run_spades(output, threads, sample1, sample2, sample)
         log = 5
         with open(f"{output}/log.txt", "w") as f:
             f.write(f"{log}\n")
@@ -108,14 +108,13 @@ if __name__ == '__main__':
 
             # find viral contigs with virsorter
     if log < 7:
-        run_virsorter(output, threads)
         log = 7
         with open(f"{output}/log.txt", "w") as f:
             f.write(f"{log}\n")
 
             # find viral contigs by comparing contigs to databases with blastn
     if log < 8:
-        run_blastn(output, threads)
+        run_blastn(output, threads, sample)
         log = 8
         with open(f"{output}/log.txt", "w") as f:
             f.write(f"{log}\n")
@@ -123,27 +122,27 @@ if __name__ == '__main__':
             # filter blastn results and integrate them with virsorter results
     print("all down break")
     if log < 9:
-        run_combination(output)
+        run_combination(output, sample)
         log = 9
         with open(f"{output}/log.txt", "w") as f:
             f.write(f"{log}\n")
 
             # drop viral contigs with low quality or low completeness with checkv
     if log < 10:
-        run_checkv(output, threads)
+        run_checkv(output, threads, sample)
         log = 10
         with open(f"{output}/log.txt", "w") as f:
             f.write(f"{log}\n")
 
     if log < 11:
-        high_quality_output(output)
+        high_quality_output(output, sample)
         log = 11
         with open(f"{output}/log.txt", "w") as f:
             f.write(f"{log}\n")
 
             # cluster contigs and get final non-redundant contigs
     if log < 12:
-        run_vsearch_2(output, threads)
+        run_vsearch_2(output, threads, sample)
         log = 12
         with open(f"{output}/log.txt", "w") as f:
             f.write(f"{log}\n")

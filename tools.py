@@ -18,12 +18,12 @@ def create_output_file(output):
         subprocess.call([f"mkdir {output}"], shell=True)
 
 
-def filter_vircontig(output):
+def filter_vircontig(output, sample):
     filtered = pd.DataFrame(data=None, columns=['qseqid', 'sseqid', 'pident', 'evalue', 'qcovs', 'database'])
     blastn = []
     virso = []
-    if os.path.getsize(f"{output}/8.blastncontigs/crass.out") != 0:
-        crass = pd.read_table(f"{output}/8.blastncontigs/crass.out", header=None)
+    if os.path.getsize(f"{output}/8.blastncontigs/{sample}/crass.out") != 0:
+        crass = pd.read_table(f"{output}/8.blastncontigs/{sample}/crass.out", header=None)
         crass.columns = ['qseqid', 'sseqid', 'pident', 'evalue', 'qcovs', 'nident', 'qlen', 'slen', 'length',
                          'mismatch', 'positive', 'ppos', 'gapopen', 'gaps', 'qstart', 'qend', 'sstart', 'send',
                          'bitscore', 'qcovhsp', 'qcovus', 'qseq', 'sstrand', 'frames']
@@ -36,8 +36,8 @@ def filter_vircontig(output):
         crass = crass.iloc[:, :5]
         crass['database'] = ['crass'] * len(crass)
         filtered = pd.concat([filtered, crass], axis=0)
-    if os.path.getsize(f"{output}/8.blastncontigs/gpd.out") != 0:
-        gpd = pd.read_table(f"{output}/8.blastncontigs/gpd.out", header=None)
+    if os.path.getsize(f"{output}/8.blastncontigs/{sample}/gpd.out") != 0:
+        gpd = pd.read_table(f"{output}/8.blastncontigs/{sample}/gpd.out", header=None)
         gpd.columns = ['qseqid', 'sseqid', 'pident', 'evalue', 'qcovs', 'nident', 'qlen', 'slen', 'length', 'mismatch',
                        'positive', 'ppos', 'gapopen', 'gaps', 'qstart', 'qend', 'sstart', 'send', 'bitscore', 'qcovhsp',
                        'qcovus', 'qseq', 'sstrand', 'frames']
@@ -50,8 +50,8 @@ def filter_vircontig(output):
         gpd = gpd.iloc[:, :5]
         gpd['database'] = ['gpd'] * len(gpd)
         filtered = pd.concat([filtered, gpd], axis=0)
-    if os.path.getsize(f"{output}/8.blastncontigs/gvd.out") != 0:
-        gvd = pd.read_table(f"{output}/8.blastncontigs/gvd.out", header=None)
+    if os.path.getsize(f"{output}/8.blastncontigs/{sample}/gvd.out") != 0:
+        gvd = pd.read_table(f"{output}/8.blastncontigs/{sample}/gvd.out", header=None)
         gvd.columns = ['qseqid', 'sseqid', 'pident', 'evalue', 'qcovs', 'nident', 'qlen', 'slen', 'length', 'mismatch',
                        'positive', 'ppos', 'gapopen', 'gaps', 'qstart', 'qend', 'sstart', 'send', 'bitscore', 'qcovhsp',
                        'qcovus', 'qseq', 'sstrand', 'frames']
@@ -64,8 +64,8 @@ def filter_vircontig(output):
         gvd = gvd.iloc[:, :5]
         gvd['database'] = ['gvd'] * len(gvd)
         filtered = pd.concat([filtered, gvd], axis=0)
-    if os.path.getsize(f"{output}/8.blastncontigs/mgv.out") != 0:
-        mgv = pd.read_table(f"{output}/8.blastncontigs/mgv.out", header=None)
+    if os.path.getsize(f"{output}/8.blastncontigs/{sample}/mgv.out") != 0:
+        mgv = pd.read_table(f"{output}/8.blastncontigs/{sample}/mgv.out", header=None)
         mgv.columns = ['qseqid', 'sseqid', 'pident', 'evalue', 'qcovs', 'nident', 'qlen', 'slen', 'length', 'mismatch',
                        'positive', 'ppos', 'gapopen', 'gaps', 'qstart', 'qend', 'sstart', 'send', 'bitscore', 'qcovhsp',
                        'qcovus', 'qseq', 'sstrand', 'frames']
@@ -78,8 +78,8 @@ def filter_vircontig(output):
         mgv = mgv.iloc[:, :5]
         mgv['database'] = ['mgv'] * len(mgv)
         filtered = pd.concat([filtered, mgv], axis=0)
-    if os.path.getsize(f"{output}/8.blastncontigs/ncbi.out") != 0:
-        ncbi = pd.read_table(f"{output}/8.blastncontigs/ncbi.out", header=None)
+    if os.path.getsize(f"{output}/8.blastncontigs/{sample}/ncbi.out") != 0:
+        ncbi = pd.read_table(f"{output}/8.blastncontigs/{sample}/ncbi.out", header=None)
         ncbi.columns = ['qseqid', 'sseqid', 'pident', 'evalue', 'qcovs', 'nident', 'qlen', 'slen', 'length', 'mismatch',
                         'positive', 'ppos', 'gapopen', 'gaps', 'qstart', 'qend', 'sstart', 'send', 'bitscore',
                         'qcovhsp', 'qcovus', 'qseq', 'sstrand', 'frames']
@@ -92,18 +92,18 @@ def filter_vircontig(output):
         ncbi = ncbi.iloc[:, :5]
         ncbi['database'] = ['ncbi'] * len(ncbi)
         filtered = pd.concat([filtered, ncbi], axis=0)
-    if os.path.getsize(f"{output}/7.vircontigs/final-viral-score.tsv") != 0:
-        dat = pd.read_table(f"{output}/7.vircontigs/final-viral-score.tsv", header=0)
+    if os.path.getsize(f"{output}/7.vircontigs/{sample}/final-viral-score.tsv") != 0:
+        dat = pd.read_table(f"{output}/7.vircontigs/{sample}/final-viral-score.tsv", header=0)
         for i in range(len(dat)):
             if dat.iloc[i, 0] not in virso:
                 virso.append(dat.iloc[i, 0].split('|')[0])
     info = pd.DataFrame(data=None, columns=['contig', 'blastn', 'virsorter'])
     num = 0
-    with open(f"{output}/6.filter/contig_1k.fasta") as f:
+    with open(f"{output}/6.filter/{sample}/contig_1k.fasta") as f:
         line = f.readline()
         if line == '':
             return 1
-        f1 = open(f"{output}/9.final-contigs/contigs.fa", 'w')
+        f1 = open(f"{output}/9.final-contigs/{sample}/contigs.fa", 'w')
         while 1:
             contig = line[1: -1]
             out = [contig, 0, 0]
@@ -124,21 +124,21 @@ def filter_vircontig(output):
             if line == '':
                 break
         f1.close()
-    info.to_csv(f"{output}/9.final-contigs/info.txt", header=True, index=False, sep='\t')
+    info.to_csv(f"{output}/9.final-contigs/{sample}/info.txt", header=True, index=False, sep='\t')
     filtered = filtered.sort_values(by=['qcovs', 'pident', 'evalue'], ascending=[False, False, True])
     filtered.drop_duplicates(subset=['qseqid'])
-    filtered.to_csv(f"{output}/9.final-contigs/blastn_info.txt", header=True, index=False, sep='\t')
+    filtered.to_csv(f"{output}/9.final-contigs/{sample}/blastn_info.txt", header=True, index=False, sep='\t')
     return 0
 
 
-def filter_checkv(output):
-    dat = pd.read_table(f"{output}/10.checkv/quality_summary.tsv", header=0)
+def filter_checkv(output, sample):
+    dat = pd.read_table(f"{output}/10.checkv/{sample}/quality_summary.tsv", header=0)
     dat1 = dat[dat["checkv_quality"] == 'Complete']
     dat2 = dat[dat["checkv_quality"] == 'High-quality']
     dat3 = dat[dat["checkv_quality"] == 'Medium-quality']
     checkv = pd.concat([dat1, dat2, dat3])['contig_id'].to_list()
-    with open(f"{output}/9.final-contigs/contigs.fa") as f:
-        f1 = open(f"{output}/11.high_quality/contigs.fa", 'w')
+    with open(f"{output}/9.final-contigs//{sample}contigs.fa") as f:
+        f1 = open(f"{output}/11.high_quality/{sample}/contigs.fa", 'w')
         while 1:
             line = f.readline()
             if line == '':
