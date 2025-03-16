@@ -21,9 +21,10 @@ def parameter_input():
 if __name__ == '__main__':
     db = "/cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/db"  # please adjust db here
     args = parameter_input()
+    sample = args.contigs
     threads = args.threads
     output = args.output
-    sample = args.contigs
+
 
     # check if the user is using "keep_log"
     if args.keep_log is False:

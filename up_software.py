@@ -37,6 +37,7 @@ def run_bowtie2(output, threads, sample1, sample2, index_path, sample):
         print("Run bowtie2")
     if os.path.exists(f"{output}/3.bowtie2/{sample}") is True:
         subprocess.call([f"rm -rf {output}/3.bowtie2/{sample}"], shell=True)
+    subprocess.call([f"mkdir -p {output}/3.bowtie2/{sample}"], shell=True)
     subprocess.call([f"mkdir {output}/3.bowtie2"], shell=True)
     subprocess.call([f"cp {output}/2.trim/{sample1}.fastq {output}/3.bowtie2/{sample}/{sample1}.fastq"], shell=True)
     subprocess.call([f"cp {output}/2.trim/{sample2}.fastq {output}/3.bowtie2/{sample}/{sample2}.fastq"], shell=True)
@@ -48,8 +49,10 @@ def run_bowtie2(output, threads, sample1, sample2, index_path, sample):
             shell=True)
         if ret != 0:
             sys.exit("Error: bowtie2 error")
-        subprocess.call([f"mv {output}/3.bowtie2/{sample}/tmp.1 {output}/3.bowtie2/{sample}/{sample1}.fastq"], shell=True)
-        subprocess.call([f"mv {output}/3.bowtie2/{sample}/tmp.2 {output}/3.bowtie2/{sample}/{sample2}.fastq"], shell=True)
+        subprocess.call([f"mv {output}/3.bowtie2/{sample}/tmp.1 {output}/3.bowtie2/{sample}/{sample1}.fastq"],
+                        shell=True)
+        subprocess.call([f"mv {output}/3.bowtie2/{sample}/tmp.2 {output}/3.bowtie2/{sample}/{sample2}.fastq"],
+                        shell=True)
     if len(index_path) != 0:
         subprocess.call([f"rm {output}/3.bowtie2/{sample}/tmp.sam"], shell=True)
     subprocess.call([f"rm -rf {output}/2.trim/{sample}*"], shell=True)
@@ -77,7 +80,7 @@ def run_spades(output, threads, sample1, sample2, sample):
     print(
         f"spades.py --meta -1 {output}/3.bowtie2/{sample}/{sample1}.fastq -2 {output}/3.bowtie2/{sample}/{sample2}.fastq -t {threads} -o {output}/5.spades/{sample}")
     ret = subprocess.call([
-        f"spades.py --meta -1 {output}/3.bowtie2/{sample}/{sample}/{sample1}.fastq -2 {output}/3.bowtie2/{sample}/{sample2}.fastq -t {threads} -o {output}/5.spades/{sample}"],
+        f"spades.py --meta -1 {output}/3.bowtie2/{sample}/{sample1}.fastq -2 {output}/3.bowtie2/{sample}/{sample2}.fastq -t {threads} -o {output}/5.spades/{sample}"],
         shell=True)
     if ret != 0:
         sys.exit("Error: spades error")
@@ -191,7 +194,7 @@ def run_combination(output, sample):
     if os.path.exists(f"{output}/9.final-contigs/{sample}") is True:
         subprocess.call([f"rm -rf {output}/9.final-contigs/{sample}"], shell=True)
     subprocess.call([f"mkdir -p {output}/9.final-contigs/{sample}"], shell=True)
-    ret = filter_vircontig(output,sample)
+    ret = filter_vircontig(output, sample)
     if ret != 0:
         sys.exit("Error: combine error")
 
