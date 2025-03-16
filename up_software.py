@@ -191,7 +191,7 @@ def run_combination(output, sample):
     if os.path.exists(f"{output}/9.final-contigs/{sample}") is True:
         subprocess.call([f"rm -rf {output}/9.final-contigs/{sample}"], shell=True)
     subprocess.call([f"mkdir -p {output}/9.final-contigs/{sample}"], shell=True)
-    ret = filter_vircontig(output)
+    ret = filter_vircontig(output,sample)
     if ret != 0:
         sys.exit("Error: combine error")
 
