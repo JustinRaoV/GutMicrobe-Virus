@@ -35,11 +35,11 @@ def run_bowtie2(output, threads, sample1, sample2, index_path, sample):
         print("No need for running bowtie2")
     else:
         print("Run bowtie2")
-    if os.path.exists(f"{output}/3.bowtie2") is True:
-        subprocess.call([f"rm -rf {output}/3.bowtie2"], shell=True)
+    if os.path.exists(f"{output}/3.bowtie2/{sample}") is True:
+        subprocess.call([f"rm -rf {output}/3.bowtie2/{sample}"], shell=True)
     subprocess.call([f"mkdir {output}/3.bowtie2"], shell=True)
-    subprocess.call([f"cp {output}/2.trim/{sample1}.fastq {output}/3.bowtie2/{sample1}.fastq"], shell=True)
-    subprocess.call([f"cp {output}/2.trim/{sample2}.fastq {output}/3.bowtie2/{sample2}.fastq"], shell=True)
+    subprocess.call([f"cp {output}/2.trim/{sample1}.fastq {output}/3.bowtie2/{sample}/{sample1}.fastq"], shell=True)
+    subprocess.call([f"cp {output}/2.trim/{sample2}.fastq {output}/3.bowtie2/{sample}/{sample2}.fastq"], shell=True)
     for na in index_path:
         print(
             f"bowtie2 -p {threads} -x {na} -1 {output}/3.bowtie2/{sample1}.fastq -2 {output}/3.bowtie2/{sample2}.fastq --un-conc {output}/3.bowtie2/tmp > {output}/3.bowtie2/tmp.sam")
