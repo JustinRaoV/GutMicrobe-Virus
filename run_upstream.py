@@ -42,18 +42,18 @@ if __name__ == '__main__':
 
     # check if the user is using "keep_log"
     if args.keep_log is False:
-        with open(f"{output}/log.txt", "w") as f:
+        with open(f"{output}/{sample}log.txt", "w") as f:
             f.write("0\n")
 
     # get log info
-    with open(f"{output}/log.txt", "r") as f:
+    with open(f"{output}/{sample}log.txt", "r") as f:
         log = int(f.readline()[0: -1])
 
     # assess quality of sequencing with fastqc
     if log < 1:
         run_fastqc(output, args.input1, args.input2, threads)
         log = 1
-        with open(f"{output}/log.txt", "w") as f:
+        with open(f"{output}/{sample}log.txt", "w") as f:
             f.write(f"{log}\n")
 
             # trim adapters with trimmomatic
@@ -68,7 +68,7 @@ if __name__ == '__main__':
             adapter = f"{db}/adapters/NexteraPE-PE.fa"
         run_trim(output, threads, args.input1, args.input2, sample1, sample2, adapter, sample)
         log = 2
-        with open(f"{output}/log.txt", "w") as f:
+        with open(f"{output}/{sample}log.txt", "w") as f:
             f.write(f"{log}\n")
 
             # trim host sequences with bowtie2
@@ -82,41 +82,41 @@ if __name__ == '__main__':
             index_path.append(f"{db}/bowtie2_index/{na}/{na}")
         run_bowtie2(output, threads, sample1, sample2, index_path)
         log = 3
-        with open(f"{output}/log.txt", "w") as f:
+        with open(f"{output}/{sample}log.txt", "w") as f:
             f.write(f"{log}\n")
 
             # report the data quality after do QCs with viromeQC
     if log < 4:
         run_viromeQC(output, sample1, sample2)
         log = 4
-        with open(f"{output}/log.txt", "w") as f:
+        with open(f"{output}/{sample}log.txt", "w") as f:
             f.write(f"{log}\n")
 
             # assemble contigs with spades
     if log < 5:
         run_spades(output, threads, sample1, sample2, sample)
         log = 5
-        with open(f"{output}/log.txt", "w") as f:
+        with open(f"{output}/{sample}log.txt", "w") as f:
             f.write(f"{log}\n")
 
             # trim short contigs with vsearch
     if log < 6:
         run_vsearch_1(output, sample)
         log = 6
-        with open(f"{output}/log.txt", "w") as f:
+        with open(f"{output}/{sample}log.txt", "w") as f:
             f.write(f"{log}\n")
 
             # find viral contigs with virsorter
     if log < 7:
         log = 7
-        with open(f"{output}/log.txt", "w") as f:
+        with open(f"{output}/{sample}log.txt", "w") as f:
             f.write(f"{log}\n")
 
             # find viral contigs by comparing contigs to databases with blastn
     if log < 8:
         run_blastn(output, threads, sample)
         log = 8
-        with open(f"{output}/log.txt", "w") as f:
+        with open(f"{output}/{sample}log.txt", "w") as f:
             f.write(f"{log}\n")
 
             # filter blastn results and integrate them with virsorter results
@@ -124,27 +124,27 @@ if __name__ == '__main__':
     if log < 9:
         run_combination(output, sample)
         log = 9
-        with open(f"{output}/log.txt", "w") as f:
+        with open(f"{output}/{sample}log.txt", "w") as f:
             f.write(f"{log}\n")
 
             # drop viral contigs with low quality or low completeness with checkv
     if log < 10:
         run_checkv(output, threads, sample)
         log = 10
-        with open(f"{output}/log.txt", "w") as f:
+        with open(f"{output}/{sample}log.txt", "w") as f:
             f.write(f"{log}\n")
 
     if log < 11:
         high_quality_output(output, sample)
         log = 11
-        with open(f"{output}/log.txt", "w") as f:
+        with open(f"{output}/{sample}log.txt", "w") as f:
             f.write(f"{log}\n")
 
             # cluster contigs and get final non-redundant contigs
     if log < 12:
         run_vsearch_2(output, threads, sample)
         log = 12
-        with open(f"{output}/log.txt", "w") as f:
+        with open(f"{output}/{sample}log.txt", "w") as f:
             f.write(f"{log}\n")
 
     print("all steps finished")
