@@ -66,7 +66,7 @@ if __name__ == '__main__':
             adapter = f"{db}/adapters/TruSeq2-PE.fa"
         else:
             adapter = f"{db}/adapters/NexteraPE-PE.fa"
-        run_trim(output, threads, args.input1, args.input2, sample1, sample2, adapter, sample)
+        run_trim(output, threads, args.input1, args.input2, sample1, sample2, adapter)
         log = 2
         with open(f"{output}/{sample}log.txt", "w") as f:
             f.write(f"{log}\n")
@@ -80,7 +80,7 @@ if __name__ == '__main__':
         index_path = []
         for na in host_list:
             index_path.append(f"{db}/bowtie2_index/{na}/{na}")
-        run_bowtie2(output, threads, sample1, sample2, index_path)
+        run_bowtie2(output, threads, sample1, sample2, index_path, sample)
         log = 3
         with open(f"{output}/{sample}log.txt", "w") as f:
             f.write(f"{log}\n")

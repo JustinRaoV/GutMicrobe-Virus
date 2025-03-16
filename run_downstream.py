@@ -27,7 +27,7 @@ if __name__ == '__main__':
 
     # check if the user is using "keep_log"
     if args.keep_log is False:
-        with open(f"{output}/log2.txt", "w") as f:
+        with open(f"{output}/{sample}log2.txt", "w") as f:
             f.write("0\n")
 
     # get log info
@@ -39,4 +39,3 @@ if __name__ == '__main__':
         log = 1
         with open(f"{output}/log2.txt", "w") as f:
             f.write(f"{log}\n")
-
