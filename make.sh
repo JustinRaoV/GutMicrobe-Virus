@@ -37,9 +37,9 @@ cd /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/testflow/GutMicrobe
 python run_upstream.py \\
     "$r1_path" \\
     "$r2_path" \\
-    -t 32 \\
+    -t 64 \\
     --host hg38 \\
-    -a 0 \\
+    -a 0 -k \\
     -o output
 
 # 激活下游环境
@@ -47,9 +47,10 @@ source activate /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/minico
 
 # 运行下游分析
 python ./run_downstream.py \\
-    -contigs "../output/12.final_non_dup/${sample_id}/final.fasta" \\
-    -t 32 \\
+    -contigs "/cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/testflow/GutMicrobe-Virus/output/12.final_non_dup/${sample_id}/final.fasta" \\
+    -t 64 \\
     -o output
+    -sample = ${sample_id}
 EOF
 
     # 添加执行权限

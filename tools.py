@@ -137,7 +137,7 @@ def filter_checkv(output, sample):
     dat2 = dat[dat["checkv_quality"] == 'High-quality']
     dat3 = dat[dat["checkv_quality"] == 'Medium-quality']
     checkv = pd.concat([dat1, dat2, dat3])['contig_id'].to_list()
-    with open(f"{output}/9.final-contigs//{sample}contigs.fa") as f:
+    with open(f"{output}/9.final-contigs/{sample}/contigs.fa") as f:
         f1 = open(f"{output}/11.high_quality/{sample}/contigs.fa", 'w')
         while 1:
             line = f.readline()
@@ -151,15 +151,16 @@ def filter_checkv(output, sample):
         f1.close()
 
 
-def final_info(output):
-    checkv = pd.read_table(f"{output}/10.checkv/quality_summary.tsv", header=0, index_col=0)
-    blastn = pd.read_table(f"{output}/9.final-contigs/blastn_info.txt", header=0, index_col=0)
-    info = pd.read_table(f"{output}/9.final-contigs/info.txt", header=0, index_col=0)
-    subprocess.call([f"cat {output}/12.final_non_dup/final.fasta | grep '>' > {output}/12.final_non_dup/temp.txt"],
-                    shell=True)
+def final_info(output, sample):
+    checkv = pd.read_table(f"{output}/10.checkv/{sample}/quality_summary.tsv", header=0, index_col=0)
+    blastn = pd.read_table(f"{output}/9.final-contigs/{sample}/blastn_info.txt", header=0, index_col=0)
+    info = pd.read_table(f"{output}/9.final-contigs/{sample}/info.txt", header=0, index_col=0)
+    subprocess.call(
+        [f"cat {output}/12.final_non_dup/{sample}/final.fasta | grep '>' > {output}/12.final_non_dup/temp.txt"],
+        shell=True)
     contig = []
     contig_blastn = []
-    with open(f"{output}/12.final_non_dup/temp.txt", "r") as fi:
+    with open(f"{output}/12.final_non_dup/{sample}/temp.txt", "r") as fi:
         while 1:
             line = fi.readline()
             if line == '':
@@ -168,11 +169,13 @@ def final_info(output):
     for ct in contig:
         if info.loc[ct, 'blastn'] == 1:
             contig_blastn.append(ct)
-    checkv.loc[contig, "checkv_quality"].to_csv(f"{output}/12.final_non_dup/completeness.txt", header=True, index=True,
+    checkv.loc[contig, "checkv_quality"].to_csv(f"{output}/12.final_non_dup/{sample}/completeness.txt", header=True,
+                                                index=True,
                                                 sep='\t')
-    info.loc[contig].to_csv(f"{output}/12.final_non_dup/info.txt", header=True, index=True, sep='\t')
-    blastn.loc[contig_blastn].to_csv(f"{output}/12.final_non_dup/blastn_info.txt", header=True, index=True, sep='\t')
-    subprocess.call([f"rm {output}/12.final_non_dup/temp.txt"], shell=True)
+    info.loc[contig].to_csv(f"{output}/12.final_non_dup/{sample}/info.txt", header=True, index=True, sep='\t')
+    blastn.loc[contig_blastn].to_csv(f"{output}/12.final_non_dup/{sample}/blastn_info.txt", header=True, index=True,
+                                     sep='\t')
+    subprocess.call([f"rm {output}/12.final_non_dup/{sample}/temp.txt"], shell=True)
 
 
 def remove_inter_result(output):

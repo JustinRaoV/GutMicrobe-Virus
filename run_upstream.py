@@ -109,10 +109,11 @@ if __name__ == '__main__':
             # find viral contigs with virsorter
     if log < 7:
         log = 7
-        with open(f"{output}/{sample}log.txt", "w") as f:
-            f.write(f"{log}\n")
+        run_virsorter(output, threads, sample)
+    with open(f"{output}/{sample}log.txt", "w") as f:
+        f.write(f"{log}\n")
 
-            # find viral contigs by comparing contigs to databases with blastn
+        # find viral contigs by comparing contigs to databases with blastn
     if log < 8:
         run_blastn(output, threads, sample)
         log = 8
