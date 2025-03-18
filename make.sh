@@ -50,7 +50,7 @@ python ./run_downstream.py \\
     -contigs "/cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/testflow/GutMicrobe-Virus/output/12.final_non_dup/${sample_id}/final.fasta" \\
     -t 64 \\
     -o output
-    -sample = ${sample_id}
+    -sample ${sample_id}
 EOF
 
     # 添加执行权限

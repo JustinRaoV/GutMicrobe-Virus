@@ -156,7 +156,7 @@ def final_info(output, sample):
     blastn = pd.read_table(f"{output}/9.final-contigs/{sample}/blastn_info.txt", header=0, index_col=0)
     info = pd.read_table(f"{output}/9.final-contigs/{sample}/info.txt", header=0, index_col=0)
     subprocess.call(
-        [f"cat {output}/12.final_non_dup/{sample}/final.fasta | grep '>' > {output}/12.final_non_dup/temp.txt"],
+        [f"cat {output}/12.final_non_dup/{sample}/final.fasta | grep '>' > {output}/12.final_non_dup/{sample}/temp.txt"],
         shell=True)
     contig = []
     contig_blastn = []
