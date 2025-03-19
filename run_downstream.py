@@ -24,39 +24,39 @@ if __name__ == '__main__':
     args = parameter_input()
     threads = args.threads
     output = args.output
-    sample = args.contigs
-    sample_name = args.sample
+    contigs = args.contigs
+    sample = args.sample
 
     # check if the user is using "keep_log"
     if args.keep_log is False:
-        with open(f"{output}/{sample_name}log2.txt", "w") as f:
+        with open(f"{output}/{sample}log2.txt", "w") as f:
             f.write("0\n")
 
     # get log info
-    with open(f"{output}/{sample_name}log2.txt", "r") as f:
+    with open(f"{output}/{sample}log2.txt", "r") as f:
         log = int(f.readline()[0: -1])
     # assess quality of sequencing with fastqc
     if log < 1:
-        run_phabox2(sample, output, threads, db, sample_name)
+        run_phabox2(contigs, output, threads, db, sample)
         log = 1
-        with open(f"{output}/log2.txt", "w") as f:
+        with open(f"{output}/{sample}log2.txt", "w") as f:
             f.write(f"{log}\n")
 
     # predict protein
     if log < 2:
         run_prodigal(output)
         log = 2
-        with open(f"{output}/log2.txt", "w") as f:
+        with open(f"{output}/{sample}log2.txt", "w") as f:
             f.write(f"{log}\n")
 
     if log < 3:
         run_cdhit(output, c=0.95, aS=0.9, threads=threads)
         log = 3
-        with open(f"{output}/log2.txt", "w") as f:
+        with open(f"{output}/{sample}log2.txt", "w") as f:
             f.write(f"{log}\n")
 
     if log < 4:
         run_eggnog(output, db)
         log = 4
-        with open(f"{output}/log2.txt", "w") as f:
+        with open(f"{output}/{sample}log2.txt", "w") as f:
             f.write(f"{log}\n")
