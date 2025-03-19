@@ -84,6 +84,10 @@ def run_spades(output, threads, sample1, sample2, sample):
         shell=True)
     if ret != 0:
         sys.exit("Error: spades error")
+    ret = subprocess.call([f"rm -rf {output}/3.bowtie2/{sample}"],
+                          shell=True)
+    if ret != 0:
+        sys.exit("Error: spades error")
 
 
 def run_vsearch_1(output, sample):
@@ -95,6 +99,11 @@ def run_vsearch_1(output, sample):
         f"vsearch --sortbylength {output}/5.spades/{sample}/scaffolds.fasta --minseqlength 1000 --maxseqlength -1 --relabel s{sample}.contig --output {output}/6.filter/{sample}/contig_1k.fasta")
     ret = subprocess.call([
         f"vsearch --sortbylength {output}/5.spades/{sample}/scaffolds.fasta --minseqlength 1000 --maxseqlength -1 --relabel s{sample}.contig --output {output}/6.filter/{sample}/contig_1k.fasta"],
+        shell=True)
+    if ret != 0:
+        sys.exit("Error: vsearch error")
+    ret = subprocess.call([
+        f"rm -rf {output}/5.spades/{sample}"],
         shell=True)
     if ret != 0:
         sys.exit("Error: vsearch error")
