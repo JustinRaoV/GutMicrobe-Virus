@@ -41,3 +41,22 @@ if __name__ == '__main__':
         log = 1
         with open(f"{output}/log2.txt", "w") as f:
             f.write(f"{log}\n")
+
+    # predict protein
+    if log < 2:
+        run_prodigal(output)
+        log = 2
+        with open(f"{output}/log2.txt", "w") as f:
+            f.write(f"{log}\n")
+
+    if log < 3:
+        run_cdhit(output, c=0.95, aS=0.9, threads=threads)
+        log = 3
+        with open(f"{output}/log2.txt", "w") as f:
+            f.write(f"{log}\n")
+
+    if log < 4:
+        run_eggnog(output, db)
+        log = 4
+        with open(f"{output}/log2.txt", "w") as f:
+            f.write(f"{log}\n")

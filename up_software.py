@@ -84,13 +84,15 @@ def run_spades(output, threads, sample1, sample2, sample):
         shell=True)
     if ret != 0:
         sys.exit("Error: spades error")
-    ret = subprocess.call([f"rm -rf {output}/3.bowtie2/{sample}"],
-                          shell=True)
+    # ret = subprocess.call([f"rm -rf {output}/3.bowtie2/{sample}"],
+    #                       shell=True)
     if ret != 0:
         sys.exit("Error: spades error")
 
 
 def run_vsearch_1(output, sample):
+    subprocess.call([f"gzip {output}/3.bowtie2/{sample}/*"],
+                    shell=True)
     print("Run vsearch (trim short contigs)")
     if os.path.exists(f"{output}/6.filter/{sample}") is True:
         subprocess.call([f"rm -rf {output}/6.filter/{sample}"], shell=True)
