@@ -84,15 +84,14 @@ def run_spades(output, threads, sample1, sample2, sample):
         shell=True)
     if ret != 0:
         sys.exit("Error: spades error")
-    # ret = subprocess.call([f"rm -rf {output}/3.bowtie2/{sample}"],
-    #                       shell=True)
     if ret != 0:
         sys.exit("Error: spades error")
 
 
 def run_vsearch_1(output, sample):
-    subprocess.call([f"gzip {output}/3.bowtie2/{sample}/*"],
-                    shell=True)
+    ret = subprocess.call([f'gzip -c "{output}/3.bowtie2/{sample}/*"'], shell=True)
+    if ret != 0:
+        sys.exit("gzip error")
     print("Run vsearch (trim short contigs)")
     if os.path.exists(f"{output}/6.filter/{sample}") is True:
         subprocess.call([f"rm -rf {output}/6.filter/{sample}"], shell=True)
@@ -138,14 +137,16 @@ virsorter run \
     print(f"VIR-SOP1")
     ret = subprocess.call(
         [
-            f"checkv end_to_end {output}/7.vircontigs/{sample}/vs2-pass1/final-viral-combined.fa {output}/7.vircontigs/checkv/{sample} -t {threads}  -d {db}/checkvdb/checkv-db-v1.0 "],
+            f"checkv end_to_end {output}/7.vircontigs/{sample}/vs2-pass1/final-viral-combined.fa {output}/7.vircontigs/{sample}/checkv-t {threads}  -d {db}/checkvdb/checkv-db-v1.0 "],
         shell=True)
     if ret != 0:
         sys.exit("Error: virsorter error")
     ret = subprocess.call(
         [
-            f"cat {output}/7.vircontigs/checkv/{sample}/proviruses.fna {output}/7.vircontigs/checkv/{sample}/viruses.fna > {output}/7.vircontigs/checkv/{sample}/combined.fna "],
+            f"cat {output}/7.vircontigs/{sample}/checkv/proviruses.fna {output}/7.vircontigs/{sample}/checkv/viruses.fna > {output}/7.vircontigs/{sample}/checkv/combined.fna "],
         shell=True)
+    if ret != 0:
+        sys.exit("Error: virsorter error")
     print(f"VIR-SOP2")
     ret = subprocess.call(
         [
@@ -245,4 +246,4 @@ def run_vsearch_2(output, threads, sample):
         shell=True)
     if ret != 0:
         sys.exit("Error: vsearch error")
-    final_info(output)
+    final_info(output, sample)
