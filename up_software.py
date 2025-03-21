@@ -88,8 +88,8 @@ def run_spades(output, threads, sample1, sample2, sample):
         sys.exit("Error: spades error")
 
 
-def run_vsearch_1(output, sample):
-    ret = subprocess.call([f'gzip -c "{output}/3.bowtie2/{sample}/*"'], shell=True)
+def run_vsearch_1(output, sample, threads):
+    ret = subprocess.call([f'pigz -p {threads} {output}/3.bowtie2/{sample}/*'], shell=True)
     if ret != 0:
         sys.exit("gzip error")
     print("Run vsearch (trim short contigs)")
@@ -137,7 +137,7 @@ virsorter run \
     print(f"VIR-SOP1")
     ret = subprocess.call(
         [
-            f"checkv end_to_end {output}/7.vircontigs/{sample}/vs2-pass1/final-viral-combined.fa {output}/7.vircontigs/{sample}/checkv-t {threads}  -d {db}/checkvdb/checkv-db-v1.0 "],
+            f"checkv end_to_end {output}/7.vircontigs/{sample}/vs2-pass1/final-viral-combined.fa {output}/7.vircontigs/{sample}/checkv -t {threads}  -d {db}/checkvdb/checkv-db-v1.0 "],
         shell=True)
     if ret != 0:
         sys.exit("Error: virsorter error")

@@ -26,3 +26,4 @@ dependencies:
   - kraken2
   - bracken
   - krakentools
+  - pigz
