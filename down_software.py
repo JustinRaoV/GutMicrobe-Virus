@@ -7,7 +7,7 @@ def run_phabox2(contigs, output, threads, db, sample):
     print("Run phabox2")
     if os.path.exists(f"{output}/13.phabox2/{sample}") is True:
         subprocess.call([f"rm -rf {output}/13.phabox2/{sample}"], shell=True)
-    subprocess.call([f"mkdir -p {output}/13.phabox2/sample"], shell=True)
+    subprocess.call([f"mkdir -p {output}/13.phabox2/{sample}"], shell=True)
     print(f"phabox2 --task end_to_end --dbdir {db}/phabox/phabox_db_v2 --skip Y \
         --outpth  {output}/13.phabox2/{sample} \
         --contigs {sample} \
@@ -97,4 +97,41 @@ def run_eggnog(output, db):
     if ret != 0:
         sys.exit("Error: eggnog VOGDB error")
 
+
 # salmon基因定量 Salmon gene quantification
+def run_salmon(output, threads, sample):
+    print("Run salmon")
+    if os.path.exists(f"{output}/17.salmon/{sample}") is True:
+        subprocess.call([f"rm -rf {output}/17.salmon/{sample}"], shell=True)
+    subprocess.call([f"mkdir -p {output}/17.salmon/{sample}"], shell=True)
+    cmd = [
+        "salmon quant",
+        "-i", f"{output}/15.prodigal/index",
+        "--meta",
+        "-1", f"{output}/3.bowtie2/{sample}/{sample}_1.fastq.gz",
+        "-2", f"{output}/3.bowtie2/{sample}/{sample}_2.fastq.gz",
+        "-o", f"{output}/17.salmon/{sample}/{sample}.quant",
+        "-l", "A",
+        "-p", threads
+    ]
+    ret = subprocess.call(cmd, shell=True)
+    if ret != 0:
+        sys.exit("Error: run_salmon error")
+
+
+def run_coverm(output, threads, sample):
+    print("Run coverm")
+    if os.path.exists(f"{output}/18.coverm/{sample}") is True:
+        subprocess.call([f"rm -rf {output}/18.coverm/{sample}"], shell=True)
+    subprocess.call([f"mkdir -p {output}/18.coverm/{sample}"], shell=True)
+    cmd = [
+        "coverm contig",
+        "---coupled",
+        f"{output}/3.bowtie2/{sample}/{sample}_1.fastq.gz {output}/3.bowtie2/{sample}/{sample}_2.fastq.gz",
+        "--reference", f"{output}/13.cd-hit/cdhit.fasta",
+        "-t", threads,
+        "-o", f"{output}/18.coverm/{sample}/{sample}.coverm",
+    ]
+    ret = subprocess.call(cmd, shell=True)
+    if ret != 0:
+        sys.exit("Error: run_salmon error")
