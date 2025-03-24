@@ -7,8 +7,7 @@ from down_software import *
 
 
 def parameter_input():
-    parser = argparse.ArgumentParser(description='pha_downstream (Phage_downstream pipeline)')
-    parser.add_argument('-reads', help='Path to the contigs file')
+    parser = argparse.ArgumentParser(description='Analysis one by one')
     parser.add_argument('-o', '--output', help='Path to output directory', default=f'{os.getcwd()}/result')
     parser.add_argument('-t', '--threads', type=int, help='Threads used to run this pipeline (default:1)', default=1)
     parser.add_argument('-k', '--keep_log', action='store_true',
@@ -27,7 +26,6 @@ if __name__ == '__main__':
     args = parameter_input()
     threads = args.threads
     output = args.output
-    reads = args.reads
     sample = args.sample
 
     # check if the user is using "keep_log"
@@ -41,7 +39,7 @@ if __name__ == '__main__':
     # assess quality of sequencing with fastqc
 
     if log < 1:
-        run_salmon(reads, output, threads, sample)
+        run_salmon(output, threads, sample)
         log = 1
         with open(f"{output}/{sample}log2.txt", "w") as f:
             f.write(f"{log}\n")

@@ -104,16 +104,9 @@ def run_salmon(output, threads, sample):
     if os.path.exists(f"{output}/17.salmon/{sample}") is True:
         subprocess.call([f"rm -rf {output}/17.salmon/{sample}"], shell=True)
     subprocess.call([f"mkdir -p {output}/17.salmon/{sample}"], shell=True)
-    cmd = [
-        "salmon quant",
-        "-i", f"{output}/15.prodigal/index",
-        "--meta",
-        "-1", f"{output}/3.bowtie2/{sample}/{sample}_1.fastq.gz",
-        "-2", f"{output}/3.bowtie2/{sample}/{sample}_2.fastq.gz",
-        "-o", f"{output}/17.salmon/{sample}/{sample}.quant",
-        "-l", "A",
-        "-p", threads
-    ]
+    cmd = [f"salmon quant -i {output}/15.prodigal/index -l A  -1 {output}/3.bowtie2/{sample}/{sample}_1.fastq.gz \
+        -2 {output}/3.bowtie2/{sample}/{sample}_2.fastq.gz -o {output}/17.salmon/{sample}/{sample}.quant --meta -p {threads}"
+           ]
     ret = subprocess.call(cmd, shell=True)
     if ret != 0:
         sys.exit("Error: run_salmon error")
@@ -135,3 +128,9 @@ def run_coverm(output, threads, sample):
     ret = subprocess.call(cmd, shell=True)
     if ret != 0:
         sys.exit("Error: run_salmon error")
+
+# salmon quant -i index -l A -1 ../3.bowtie2/TXAS01/TXAS01_1.fastq.gz \
+#         -2 ../3.bowtie2/TXAS01/TXAS01_2.fastq.gz -o ../17.salmon/TXAS01/TXAS01.quant --meta  -p 32"
+#
+# coverm contig -1 ../3.bowtie2/TXAS01/TXAS01_1.fastq.gz  -2 ../3.bowtie2/TXAS01/TXAS01_2.fastq.gz \
+# --reference nucleotide.fa --methods count  --output-file ERR1201173_coverm_tpm.tsv --no-zeros
