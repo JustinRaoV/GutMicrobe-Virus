@@ -1,10 +1,6 @@
 import argparse
-import os
-import sys
-import pandas as pd
 
-from tools import *
-from all_down_software import *
+from software.all_down_software import *
 
 
 def parameter_input():

@@ -114,16 +114,20 @@ def run_salmon(output, threads, sample):
 
 def run_coverm(output, threads, sample):
     print("Run coverm")
-    if os.path.exists(f"{output}/18.coverm/{sample}") is True:
-        subprocess.call([f"rm -rf {output}/18.coverm/{sample}"], shell=True)
-    subprocess.call([f"mkdir -p {output}/18.coverm/{sample}"], shell=True)
+    if os.path.exists(f"{output}/21.coverm/{sample}") is True:
+        subprocess.call([f"rm -rf {output}/21.coverm/{sample}"], shell=True)
+    subprocess.call([f"mkdir -p {output}/21.coverm/{sample}"], shell=True)
     cmd = [
-        "coverm contig",
-        "---coupled",
-        f"{output}/3.bowtie2/{sample}/{sample}_1.fastq.gz {output}/3.bowtie2/{sample}/{sample}_2.fastq.gz",
-        "--reference", f"{output}/13.cd-hit/cdhit.fasta",
-        "-t", threads,
-        "-o", f"{output}/18.coverm/{sample}/{sample}.coverm",
+        f"""
+        coverm contig --reference {output}/13.cd-hit/cdhit.fasta \
+                       -1 {output}/3.bowtie2/{sample}/{sample}_1.fastq.gz -2 {output}/3.bowtie2/{sample}/{sample}_2.fastq.gz \
+                       --min-read-percent-identity 95 \
+                       --min-read-aligned-percent 75 \
+                       --methods count \
+                       --threads {threads} \
+                       --output-format dense \
+                       -o {output}/21.coverm/{sample}/coverm_results.tsv
+        """
     ]
     ret = subprocess.call(cmd, shell=True)
     if ret != 0:

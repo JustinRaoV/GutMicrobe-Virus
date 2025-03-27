@@ -23,7 +23,7 @@ find "$input_dir" -name "*_1.fq.gz" | while read r1_path; do
     sample_id=$(basename "$r1_path" "_1.fq.gz")
 
     # 生成任务脚本
-    cat > "./script/${sample_id}_pipeline.sh" << EOF
+    cat > "./downscript/${sample_id}_pipeline.sh" << EOF
 #!/bin/bash
 
 # 加载模块并激活上游环境
@@ -40,7 +40,7 @@ python ./qua_indi.py -t 64 -o output -sample ${sample_id}
 EOF
 
     # 添加执行权限
-    chmod +x "./script/${sample_id}_pipeline.sh"
+    chmod +x "./downscript/${sample_id}_pipeline.sh"
     echo "已生成样本 ${sample_id} 的流程脚本：${sample_id}_pipeline.sh"
 done
 

@@ -1,9 +1,5 @@
 import argparse
-import os
-import sys
-import pandas as pd
-from tools import *
-from down_software import *
+from software.down_software import *
 
 
 def parameter_input():
@@ -39,10 +35,16 @@ if __name__ == '__main__':
     # assess quality of sequencing with fastqc
 
     if log < 1:
-        run_salmon(output, threads, sample)
+        run_coverm(output, threads, sample)
         log = 1
         with open(f"{output}/{sample}log2.txt", "w") as f:
             f.write(f"{log}\n")
+
+    # if log < 1:
+    #     run_salmon(output, threads, sample)
+    #     log = 1
+    #     with open(f"{output}/{sample}log2.txt", "w") as f:
+    #         f.write(f"{log}\n")
 
     # # predict protein
     # if log < 2:
