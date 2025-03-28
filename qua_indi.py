@@ -14,9 +14,6 @@ def parameter_input():
     return args
 
 
-
-
-
 if __name__ == '__main__':
     db = "/cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/db"  # please adjust db here
     args = parameter_input()
@@ -40,27 +37,8 @@ if __name__ == '__main__':
         with open(f"{output}/{sample}log2.txt", "w") as f:
             f.write(f"{log}\n")
 
-    # if log < 1:
-    #     run_salmon(output, threads, sample)
-    #     log = 1
-    #     with open(f"{output}/{sample}log2.txt", "w") as f:
-    #         f.write(f"{log}\n")
-
-    # # predict protein
     # if log < 2:
-    #     run_prodigal(output)
+    #     run_salmon(output, threads, sample)
     #     log = 2
-    #     with open(f"{output}/{sample}log2.txt", "w") as f:
-    #         f.write(f"{log}\n")
-    #
-    # if log < 3:
-    #     run_cdhit(output, c=0.95, aS=0.9, threads=threads)
-    #     log = 3
-    #     with open(f"{output}/{sample}log2.txt", "w") as f:
-    #         f.write(f"{log}\n")
-    #
-    # if log < 4:
-    #     run_eggnog(output, db)
-    #     log = 4
     #     with open(f"{output}/{sample}log2.txt", "w") as f:
     #         f.write(f"{log}\n")

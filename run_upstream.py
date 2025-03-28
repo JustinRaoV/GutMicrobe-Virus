@@ -97,7 +97,7 @@ if __name__ == '__main__':
 
             # trim short contigs with vsearch
     if log < 6:
-        run_vsearch_1(output, sample,threads)
+        run_vsearch_1(output, sample, threads)
         log = 6
         with open(f"{output}/{sample}log.txt", "w") as f:
             f.write(f"{log}\n")
