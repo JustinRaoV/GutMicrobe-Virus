@@ -2,51 +2,50 @@
 
 一个集成的病毒组分析流程，提供从原始测序数据到高质量病毒contigs鉴定，再到功能注释的全套解决方案。
 
-本流程结合了https://github.com/li-bw18/iVirP 和https://github.com/KennthShang/PhaBOX，并进行了一些改进
+本流程结合了https://github.com/li-bw18/iVirP 和https://github.com/KennthShang/PhaBOX
 
+在down_tools里提供了一系列下游分析代码，可以直接使用。
 ## 📋 目录
-• [功能特性](#-功能特性)
-• [流程架构](#-流程架构)
-• [环境安装](#-环境安装)
-• [快速开始](#-快速开始)
-• [使用指南](#-使用指南)
-• [结果解读](#-结果解读)
-• [数据库配置](#-数据库配置)
-• [贡献指南](#-贡献指南)
-• [许可协议](#-许可协议)
+- [流程架构](#-流程架构)
+- [环境安装](#-环境安装)
+- [快速开始](#-快速开始)
+- [使用指南](#-使用指南)
+- [结果解读](#-结果解读)
+- [数据库配置](#-数据库配置)
+-  [贡献指南](#-贡献指南)
+-  [许可协议](#-许可协议)
 
-## 🌟 功能特性
-• **全自动化分析**：一站式处理双端测序数据
-• **严格质控体系**：
-  • FastQC + Trimmomatic 数据清洗
-  • 多宿主基因组过滤（支持hg38等）
-  • ViromeQC质量报告
-• **智能组装优化**：
-  • SPAdes混合组装策略
-  • VSearch长度过滤（≥1kb）
-• **精准病毒鉴定**：
-  • VirSorter2病毒特征识别
-  • 多数据库Blastn验证（NCBI、GVD等）
-• **质量评估体系**：
-  • CheckV完整性评估
-  • 97%相似度去冗余
-• **下游功能分析**：
-  • PHABOX2噬菌体注释
-  • 耐药基因/毒力因子预测
 
 ## 🏗 流程架构
-```ascii
-原始数据 → 质量控制 → 宿主去除 → 宏基因组组装 → 病毒筛选 → 质量评估 → 功能注释
-    │          │           │            │             │            │          │
-    │          │           │            │             │            │          └─ PHABOX2分析
-    │          │           │            │             │            └─ CheckV质量报告
-    │          │           │            │             └─ 多数据库Blastn验证
-    │          │           │            └─ VirSorter2分类
-    │          │           └─ Bowtie2宿主过滤
-    │          └─ Trimmomatic接头修剪
-    └─ FastQC质控报告
-```
+1. **质量控制**
+   - FastQC: 原始测序数据质量评估
+   - Trimmomatic: 去除测序接头序列（支持Nextera/TruSeq系列接头）
 
+2. **宿主序列去除**
+   - Bowtie2: 基于预建索引过滤宿主序列（支持多宿主联合过滤）
+
+3. **序列组装**
+   - SPAdes: 对clean reads进行宏基因组组装
+
+4. **病毒序列筛选**
+   - VSEARCH: 过滤短contigs（<1.5kbp）
+   - VirSorter: 基于序列特征预测病毒contigs
+   - BLASTn: 比对病毒数据库筛选候选序列
+   - 结果整合: 综合VirSorter和BLASTn预测结果
+
+5. **质量评估与去冗余**
+   - CheckV: 评估病毒contigs完整性与质量
+   - VSEARCH: 聚类生成非冗余contigs（97%相似度阈值）
+
+6. **数据整合与去冗余**
+   - CD-HIT: 聚类生成非冗余contigs
+   - phabox2: 全部下游步骤：宿主预测，活性预测，物种注释
+7. **基因功能分析**
+   - prodigal: 发现基因序列
+   - eggnog：注释基因
+8. **基因功能分析**
+   - coverm: 统计contigs丰度
+   - salmon：统计基因丰度
 ## ⚙ 环境安装
 
 ### 通过Conda部署
@@ -54,21 +53,14 @@
 git clone https://github.com/raojun1023/GutMicrobe-Virus.git
 cd GutMicrobe-Virus
 conda env create -f envs/ivirp_env.yaml
-conda activate ivirp
+conda env create -n phabox2 phabox2 coverm salmon cdhit
 ```
 
 ### 数据库配置
 1. 下载预编译数据库包
-2. 修改`config/db_path.conf`：
+2. 修改全局变量`db`：
 ```ini
-[BOWTIE2_INDEX]
-hg38 = /path/to/hg38_index
-
-[VIRSORTER_DB]
-v2 = /path/to/virsorter2_db
-
-[PHABOX_DB]
-v2 = /path/to/phabox_db
+db = '~/home/db'
 ```
 
 ## 🚀 快速开始
@@ -80,11 +72,17 @@ python run_upstream.py sample_1.fq.gz sample_2.fq.gz \
     -t 32 \
     -o results/
 
-# 下游注释
+# 整体下游注释，需要在同一个results文件夹下完成
 python run_downstream.py \
-    -contigs results/12.final_non_dup/sample/final.fasta \
     -t 32 \
-    -o annotations/
+    -o results/
+
+# 单样本逐个分析
+python qua_indi.py \
+    - sample sample
+    -t 32 \
+    -o results/
+
 ```
 
 ### 批量分析
