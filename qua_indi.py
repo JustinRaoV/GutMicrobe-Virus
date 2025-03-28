@@ -3,8 +3,7 @@ from software.down_software import *
 
 
 def parameter_input():
-    parser = argparse.ArgumentParser(description='pha_downstream (Phage_downstream pipeline)')
-    parser.add_argument('-contigs', help='Path to the contigs file')
+    parser = argparse.ArgumentParser(description='Analysis one by one')
     parser.add_argument('-o', '--output', help='Path to output directory', default=f'{os.getcwd()}/result')
     parser.add_argument('-t', '--threads', type=int, help='Threads used to run this pipeline (default:1)', default=1)
     parser.add_argument('-k', '--keep_log', action='store_true',
@@ -20,7 +19,6 @@ if __name__ == '__main__':
     args = parameter_input()
     threads = args.threads
     output = args.output
-    contigs = args.contigs
     sample = args.sample
 
     # check if the user is using "keep_log"
@@ -32,27 +30,15 @@ if __name__ == '__main__':
     with open(f"{output}/{sample}log2.txt", "r") as f:
         log = int(f.readline()[0: -1])
     # assess quality of sequencing with fastqc
+
     if log < 1:
-        run_phabox2(contigs, output, threads, db, sample)
+        run_coverm(output, threads, sample)
         log = 1
         with open(f"{output}/{sample}log2.txt", "w") as f:
             f.write(f"{log}\n")
 
-    # predict protein
-    if log < 2:
-        run_prodigal(output)
-        log = 2
-        with open(f"{output}/{sample}log2.txt", "w") as f:
-            f.write(f"{log}\n")
-
-    if log < 3:
-        run_cdhit(output, c=0.95, aS=0.9, threads=threads)
-        log = 3
-        with open(f"{output}/{sample}log2.txt", "w") as f:
-            f.write(f"{log}\n")
-
-    if log < 4:
-        run_eggnog(output, db)
-        log = 4
-        with open(f"{output}/{sample}log2.txt", "w") as f:
-            f.write(f"{log}\n")
+    # if log < 2:
+    #     run_salmon(output, threads, sample)
+    #     log = 2
+    #     with open(f"{output}/{sample}log2.txt", "w") as f:
+    #         f.write(f"{log}\n")
