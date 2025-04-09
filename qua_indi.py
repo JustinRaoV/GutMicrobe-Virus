@@ -37,8 +37,8 @@ if __name__ == '__main__':
         with open(f"{output}/{sample}log2.txt", "w") as f:
             f.write(f"{log}\n")
 
-    # if log < 2:
-    #     run_salmon(output, threads, sample)
-    #     log = 2
-    #     with open(f"{output}/{sample}log2.txt", "w") as f:
-    #         f.write(f"{log}\n")
+    if log < 2:
+        run_salmon(output, threads, sample)
+        log = 2
+        with open(f"{output}/{sample}log2.txt", "w") as f:
+            f.write(f"{log}\n")
