@@ -3,7 +3,7 @@ import subprocess
 import os
 import sys
 import pandas as pd
-from tools import *
+from software.tools import *
 
 
 def run_fastqc(output, input1, input2, threads):
