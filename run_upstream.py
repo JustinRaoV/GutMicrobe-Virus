@@ -1,5 +1,4 @@
 import argparse
-import os
 from software.up_software import *
 
 
@@ -21,32 +20,28 @@ def parameter_input():
     parser.add_argument('-k', '--keep_log', action='store_true',
                         help='Resume interrupted run (do not modify output dir)',
                         default=False)
+    parser.add_argument('--db', help='Path to database directory',
+                        default="/cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/db")
     return parser.parse_args()
 
 
 if __name__ == '__main__':
-    db = "/cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/db"  # 硬编码路径，后续改为配置参数
     args = parameter_input()
     threads = args.threads
     output = args.output
-    sample1 = get_sample_name(os.path.basename(args.input1))
-    sample2 = get_sample_name(os.path.basename(args.input2))
-    sample = sample1[:-2]
+    db = args.db
+    sample1 = get_sample_name(args.input1.split('/')[-1])
+    sample2 = get_sample_name(args.input2.split('/')[-1])
+    sample = sample1[0: -2]
 
     # create the output directory if it does not exist
     create_output_file(output)
 
-    # check if the user is using "keep_log"
-    if args.keep_log is False:
-        with open(f"{output}/{sample}log.txt", "w") as f:
-            f.write("0\n")
-
-    log_path = os.path.join(output, f"{sample}log.txt")
+    log_path = os.path.join(output, "logs", f"{sample}log.txt")
     if not args.keep_log:
         with open(log_path, "w") as f:
             f.write("0\n")
 
-    # 读取日志状态
     with open(log_path, "r") as f:
         log = int(f.readline().strip())
 
@@ -83,60 +78,60 @@ if __name__ == '__main__':
         with open(log_path, "w") as f:
             f.write(f"{log}\n")
 
-    # 4. assemble contigs with spades
+    # 步骤4: assemble contigs with spades
     if log < 4:
         run_spades(output, threads, sample1, sample2, sample)
         log = 4
-        with open(f"{output}/{sample}log.txt", "w") as f:
+        with open(log_path, "w") as f:
             f.write(f"{log}\n")
 
-    # 5. trim short contigs with vsearch
+    # 步骤5: trim short contigs with vsearch
     if log < 5:
         run_vsearch_1(output, sample, threads)
         log = 5
-        with open(f"{output}/{sample}log.txt", "w") as f:
+        with open(log_path, "w") as f:
             f.write(f"{log}\n")
 
-    # 6.find viral contigs with virsorter
+    # 步骤6: find viral contigs with virsorter
     if log < 6:
-        run_virsorter(output, threads, sample)
+        run_virsorter(output, threads, sample, db)
         log = 6
         with open(log_path, "w") as f:
             f.write(f"{log}\n")
 
-    # 7.find viral contigs by comparing contigs to databases with blastn
+    # 步骤7: blastn比对
     if log < 7:
-        run_blastn(output, threads, sample)
+        run_blastn(output, threads, sample, db)  # 添加db参数
         log = 7
-        with open(f"{output}/{sample}log.txt", "w") as f:
+        with open(log_path, "w") as f:
             f.write(f"{log}\n")
 
-    # 8.filter blastn results and integrate them with virsorter results
+    # 步骤8: 结果整合
     if log < 8:
         run_combination(output, sample)
         log = 8
-        with open(f"{output}/{sample}log.txt", "w") as f:
+        with open(log_path, "w") as f:
             f.write(f"{log}\n")
 
-            # drop viral contigs with low quality or low completeness with checkv
+            # 步骤9: checkv质量评估
     if log < 9:
-        run_checkv(output, threads, sample)
+        run_checkv(output, threads, sample, db)
         log = 9
-        with open(f"{output}/{sample}log.txt", "w") as f:
+        with open(log_path, "w") as f:
             f.write(f"{log}\n")
 
     if log < 10:
         high_quality_output(output, sample)
         log = 10
-        with open(f"{output}/{sample}log.txt", "w") as f:
+        with open(log_path, "w") as f:
             f.write(f"{log}\n")
 
-            # cluster contigs and get final non-redundant contigs
-    if log < 11:
-        run_vsearch_2(output, threads, sample)
-        log = 11
-        with open(f"{output}/{sample}log.txt", "w") as f:
-            f.write(f"{log}\n")
+    # cluster contigs and get final non-redundant contigs
+    # if log < 11:
+    #     run_vsearch_2(output, threads, sample)
+    #     log = 11
+    #     with open(log_path, "w") as f:
+    #         f.write(f"{log}\n")
 
     print("all steps finished")
     if args.remove_inter_result:

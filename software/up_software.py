@@ -1,3 +1,4 @@
+import shutil
 import subprocess
 import os
 import sys
@@ -6,244 +7,257 @@ from tools import *
 
 
 def run_fastqc(output, input1, input2, threads):
-    print("Run fastqc")
-    if os.path.exists(f"{output}/1.fastqc") is True:
-        subprocess.call([f"rm -rf {output}/1.fastqc"], shell=True)
-    subprocess.call([f"mkdir {output}/1.fastqc"], shell=True)
-    print(f"fastqc {input1} {input2} -t {threads} -o {output}/1.fastqc")
-    ret = subprocess.call([f"fastqc {input1} {input2} -t {threads} -o {output}/1.fastqc"], shell=True)
-    if ret != 0:
-        print("Warning: fastqc error")
+    fastqc_dir = os.path.join(output, "1.fastqc")
+    os.makedirs(fastqc_dir, exist_ok=True)
+    cmd = [
+        "fastqc", input1, input2,
+        "-t", str(threads),
+        "-o", fastqc_dir
+    ]
+    try:
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError as e:
+        sys.exit(f"FastQC failed: {e}")
 
 
-# You should adjust trimmomatic settings here
 def run_trim(output, threads, input1, input2, sample1, sample2, adapter):
-    print("Run trim")
-    if os.path.exists(f"{output}/2.trim") is False:
-        subprocess.call([f"mkdir {output}/2.trim"], shell=True)
-    print(
-        f"trimmomatic PE -threads {threads} -phred33 {input1} {input2} {output}/2.trim/{sample1}.fastq {output}/2.trim/{sample1}_single.fastq {output}/2.trim/{sample2}.fastq {output}/2.trim/{sample2}_single.fastq ILLUMINACLIP:{adapter}:2:30:10 SLIDINGWINDOW:4:20 MINLEN:50")
-    ret = subprocess.call([
-        f"trimmomatic PE -threads {threads} -phred33 {input1} {input2} {output}/2.trim/{sample1}.fastq {output}/2.trim/{sample1}_single.fastq {output}/2.trim/{sample2}.fastq {output}/2.trim/{sample2}_single.fastq ILLUMINACLIP:{adapter}:2:30:10 SLIDINGWINDOW:4:20 MINLEN:50"],
-        shell=True)
-    if ret != 0:
-        sys.exit("Error: trimmomatic error")
+    trim_dir = os.path.join(output, "2.trim")
+    os.makedirs(trim_dir, exist_ok=True)
+    cmd = [
+        "trimmomatic", "PE",
+        "-threads", str(threads),
+        "-phred33",
+        input1, input2,
+        f"{trim_dir}/{sample1}.fastq",
+        f"{trim_dir}/{sample1}_single.fastq",
+        f"{trim_dir}/{sample2}.fastq",
+        f"{trim_dir}/{sample2}_single.fastq",
+        f"ILLUMINACLIP:{adapter}:2:30:10",
+        "SLIDINGWINDOW:4:20",
+        "MINLEN:50"
+    ]
+    try:
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError as e:
+        sys.exit(f"Trimmomatic error: {e}")
 
 
 def run_bowtie2(output, threads, sample1, sample2, index_path, sample):
-    if len(index_path) == 0:
-        print("No need for running bowtie2")
-    else:
-        print("Run bowtie2")
-    if os.path.exists(f"{output}/3.bowtie2/{sample}") is True:
-        subprocess.call([f"rm -rf {output}/3.bowtie2/{sample}"], shell=True)
-    subprocess.call([f"mkdir -p {output}/3.bowtie2/{sample}"], shell=True)
-    subprocess.call([f"mkdir {output}/3.bowtie2"], shell=True)
-    subprocess.call([f"cp {output}/2.trim/{sample1}.fastq {output}/3.bowtie2/{sample}/{sample1}.fastq"], shell=True)
-    subprocess.call([f"cp {output}/2.trim/{sample2}.fastq {output}/3.bowtie2/{sample}/{sample2}.fastq"], shell=True)
-    for na in index_path:
-        print(
-            f"bowtie2 -p {threads} -x {na} -1 {output}/3.bowtie2/{sample1}.fastq -2 {output}/3.bowtie2/{sample2}.fastq --un-conc {output}/3.bowtie2/tmp > {output}/3.bowtie2/tmp.sam")
-        ret = subprocess.call([
-            f"bowtie2 -p {threads} -x {na} -1 {output}/3.bowtie2/{sample}/{sample1}.fastq -2 {output}/3.bowtie2/{sample}/{sample2}.fastq --un-conc {output}/3.bowtie2/{sample}/tmp > {output}/3.bowtie2/{sample}/tmp.sam"],
-            shell=True)
-        if ret != 0:
-            sys.exit("Error: bowtie2 error")
-        subprocess.call([f"mv {output}/3.bowtie2/{sample}/tmp.1 {output}/3.bowtie2/{sample}/{sample1}.fastq"],
-                        shell=True)
-        subprocess.call([f"mv {output}/3.bowtie2/{sample}/tmp.2 {output}/3.bowtie2/{sample}/{sample2}.fastq"],
-                        shell=True)
-    if len(index_path) != 0:
-        subprocess.call([f"rm {output}/3.bowtie2/{sample}/tmp.sam"], shell=True)
-    subprocess.call([f"rm -rf {output}/2.trim/{sample}*"], shell=True)
+    bowtie2_dir = os.path.join(output, "3.bowtie2")
+    sample_dir = os.path.join(bowtie2_dir, sample)
+    trim_dir = os.path.join(output, "2.trim")
 
+    if os.path.exists(sample_dir):
+        shutil.rmtree(sample_dir)  # 修复：使用shutil.rmtree删除非空目录
+    os.makedirs(sample_dir, exist_ok=True)
 
-def run_viromeQC(output, sample1, sample2):
-    print("Run viromeQC")
-    if os.path.exists(f"{output}/4.viromeQC") is False:
-        subprocess.call([f"mkdir {output}/4.viromeQC"], shell=True)
-    print(
-        f"python {sys.path[0]}/viromeqc/viromeQC.py -i {output}/3.bowtie2/{sample1}.fastq {output}/3.bowtie2/{sample2}.fastq -o {output}/4.viromeQC/report.txt")
-    # ret = subprocess.call([
-    #     f"python {sys.path[0]}/viromeqc/viromeQC.py -i {output}/3.bowtie2/{sample1}.fastq {output}/3.bowtie2/{sample2}.fastq -o {output}/4.viromeQC/report.txt"],
-    #     shell=True)
-    ret = 0
-    if ret != 0:
-        print("Warning: viromeQC error")
+    try:
+        shutil.copy(os.path.join(trim_dir, f"{sample1}.fastq"),
+                    os.path.join(sample_dir, f"{sample1}.fastq"))
+        shutil.copy(os.path.join(trim_dir, f"{sample2}.fastq"),
+                    os.path.join(sample_dir, f"{sample2}.fastq"))
+    except Exception as e:
+        sys.exit(f"File copy failed: {e}")
+
+    for index in index_path:
+        input1 = os.path.join(sample_dir, f"{sample1}.fastq")
+        input2 = os.path.join(sample_dir, f"{sample2}.fastq")
+        tmp_prefix = os.path.join(sample_dir, "tmp")
+        sam_output = os.path.join(sample_dir, "tmp.sam")
+        cmd = [
+            "bowtie2", "-p", str(threads),
+            "-x", index,
+            "-1", input1, "-2", input2,
+            "--un-conc", tmp_prefix,
+            "-S", sam_output
+        ]
+        try:
+            subprocess.run(cmd, check=True)
+            shutil.move(f"{tmp_prefix}.1", input1)
+            shutil.move(f"{tmp_prefix}.2", input2)
+        except Exception as e:
+            sys.exit(f"bowtie2 failed: {e}")
+
+    # 使用安全路径处理
+    subprocess.run(["rm", "-rf", f"{output}/2.trim/{sample}*"], check=False)
+    subprocess.run(["rm", "-rf", f"{output}/3.bowtie2/{sample}/tmp.sam"], check=False)
 
 
 def run_spades(output, threads, sample1, sample2, sample):
-    print("Run spades")
-    if os.path.exists(f"{output}/5.spades/{sample}") is True:
-        subprocess.call([f"rm -rf {output}/5.spades/{sample}"], shell=True)
-    subprocess.call([f"mkdir -p {output}/5.spades/{sample}"], shell=True)
-    print(
-        f"spades.py --meta -1 {output}/3.bowtie2/{sample}/{sample1}.fastq -2 {output}/3.bowtie2/{sample}/{sample2}.fastq -t {threads} -o {output}/5.spades/{sample}")
-    ret = subprocess.call([
-        f"spades.py --meta -1 {output}/3.bowtie2/{sample}/{sample1}.fastq -2 {output}/3.bowtie2/{sample}/{sample2}.fastq -t {threads} -o {output}/5.spades/{sample}"],
-        shell=True)
-    if ret != 0:
-        sys.exit("Error: spades error")
-    if ret != 0:
-        sys.exit("Error: spades error")
+    spades_dir = os.path.join(output, "4.spades", sample)
+    if os.path.exists(spades_dir):
+        shutil.rmtree(spades_dir)
+    os.makedirs(spades_dir, exist_ok=True)
+
+    cmd = [
+        "spades.py", "--meta",
+        "-1", os.path.join(output, "3.bowtie2", sample, f"{sample1}.fastq"),
+        "-2", os.path.join(output, "3.bowtie2", sample, f"{sample2}.fastq"),
+        "-t", str(threads), "-o", spades_dir
+    ]
+    try:
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError as e:
+        sys.exit(f"SPAdes failed: {e}")
 
 
 def run_vsearch_1(output, sample, threads):
-    ret = subprocess.call([f'pigz -p {threads} {output}/3.bowtie2/{sample}/*'], shell=True)
-    if ret != 0:
-        sys.exit("gzip error")
-    print("Run vsearch (trim short contigs)")
-    if os.path.exists(f"{output}/6.filter/{sample}") is True:
-        subprocess.call([f"rm -rf {output}/6.filter/{sample}"], shell=True)
-    subprocess.call([f"mkdir -p {output}/6.filter/{sample}"], shell=True)
-    print(
-        f"vsearch --sortbylength {output}/5.spades/{sample}/scaffolds.fasta --minseqlength 1000 --maxseqlength -1 --relabel s{sample}.contig --output {output}/6.filter/{sample}/contig_1k.fasta")
-    ret = subprocess.call([
-        f"vsearch --sortbylength {output}/5.spades/{sample}/scaffolds.fasta --minseqlength 1000 --maxseqlength -1 --relabel s{sample}.contig --output {output}/6.filter/{sample}/contig_1k.fasta"],
-        shell=True)
-    if ret != 0:
-        sys.exit("Error: vsearch error")
-    ret = subprocess.call([
-        f"rm -rf {output}/5.spades/{sample}"],
-        shell=True)
-    if ret != 0:
-        sys.exit("Error: vsearch error")
+    filter_dir = os.path.join(output, "5.filter", sample)
+    os.makedirs(filter_dir, exist_ok=True)
+
+    try:
+        subprocess.run(["pigz", "-p", str(threads), "-f",
+                        os.path.join(output, "3.bowtie2", sample, "*.fastq")],
+                       check=True)
+
+        cmd = [
+            "vsearch", "--sortbylength",
+            os.path.join(output, "4.spades", sample, "scaffolds.fasta"),
+            "--minseqlength", "1000", "--maxseqlength", "-1",
+            "--relabel", f"s{sample}.contig",
+            "--output", os.path.join(filter_dir, "contig_1k.fasta")
+        ]
+        subprocess.run(cmd, check=True)
+        shutil.rmtree(os.path.join(output, "4.spades", sample))
+    except subprocess.CalledProcessError as e:
+        sys.exit(f"VSearch error: {e}")
 
 
-def run_virsorter(output, threads, sample):
-    print("Run virsorter")
-    db = "/cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/db"  # db
-    if os.path.exists(f"{output}/7.vircontigs/{sample}") is True:
-        subprocess.call([f"rm -rf {output}/7.vircontigs/{sample}"], shell=True)
-    subprocess.call([f"mkdir -p {output}/7.vircontigs/{sample}"], shell=True)
-    print(f"virsorter run -w {output}/7.vircontigs -i {output}/6.filter/contig_1k.fasta -j {threads} all")
-    script = f"""
-module unload CentOS/7.9/Anaconda3/24.5.0&&\
-source activate /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/miniconda3/envs/viroprofiler-virsorter2 && \
-virsorter run \
-    --keep-original-seq \
-    -w {output}/7.vircontigs/{sample}/vs2-pass1 \
-    --include-groups dsDNAphage,ssDNA \
-    --min-length 5000 \
-    --min-score 0.5 \
-    -i {output}/6.filter/{sample}/contig_1k.fasta \
-    -j {threads} \
-    -d {db}/virsorter2 \
-    all
-"""
-    ret = subprocess.call(script, shell=True)
-    if ret != 0:
-        sys.exit("Error: virsorter error")
-    print(f"VIR-SOP1")
-    ret = subprocess.call(
-        [
-            f"checkv end_to_end {output}/7.vircontigs/{sample}/vs2-pass1/final-viral-combined.fa {output}/7.vircontigs/{sample}/checkv -t {threads}  -d {db}/checkvdb/checkv-db-v1.0 "],
-        shell=True)
-    if ret != 0:
-        sys.exit("Error: virsorter error")
-    ret = subprocess.call(
-        [
-            f"cat {output}/7.vircontigs/{sample}/checkv/proviruses.fna {output}/7.vircontigs/{sample}/checkv/viruses.fna > {output}/7.vircontigs/{sample}/checkv/combined.fna "],
-        shell=True)
-    if ret != 0:
-        sys.exit("Error: virsorter error")
-    print(f"VIR-SOP2")
-    ret = subprocess.call(
-        [
-            f"module unload CentOS/7.9/Anaconda3/24.5.0&&\
-source activate /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/miniconda3/envs/viroprofiler-virsorter2 && \
-virsorter run --seqname-suffix-off --viral-gene-enrich-off --prep-for-dramv -i {output}/7.vircontigs/{sample}/checkv/combined.fna -w {output}/7.vircontigs/{sample} --include-groups dsDNAphage,ssDNA --min-length 5000 --min-score 0.5 -d {db}/virsorter2 all"],
-        shell=True)
-    if ret != 0:
-        sys.exit("Error: virsorter error")
+def run_virsorter(output, threads, sample, db):
+    print("Running VirSorter")
+    os.path.join(db, "virsorter2")
+    input_fasta = os.path.join(output, "5.filter", sample, "contig_1k.fasta")
+    virsorter_dir = os.path.join(output, "6.vircontigs", sample)
+
+    try:
+        # First pass
+        cmd = (
+            f"module unload anaconda && "
+            f"source activate virsorter2 && "
+            f"virsorter run -w {virsorter_dir}/vs2-pass1 "
+            f"-i {input_fasta} -j {threads} --min-length 3000 "
+            f"--min-score 0.5 --keep-original-seq all"
+        )
+        subprocess.run(cmd, shell=True, check=True)
+
+        # CheckV
+        checkv_dir = os.path.join(virsorter_dir, "checkv")
+        cmd = [
+            "checkv", "end_to_end",
+            os.path.join(virsorter_dir, "vs2-pass1/final-viral-combined.fa"),
+            checkv_dir, "-t", str(threads), "-d", f"{db}/checkvdb/checkv-db-v1.0 "
+        ]
+        subprocess.run(cmd, check=True)
+
+        # Combine outputs
+        with open(os.path.join(checkv_dir, "combined.fna"), "w") as out:
+            for f in ["proviruses.fna", "viruses.fna"]:
+                with open(os.path.join(checkv_dir, f)) as infile:
+                    out.write(infile.read())
+
+        # Second pass
+        cmd = (
+            f"source activate virsorter-env && "
+            f"virsorter run -w {virsorter_dir} "
+            f"-i {checkv_dir}/combined.fna --prep-for-dramv "
+            f"--min-length 5000 --min-score 0.5 all"
+        )
+        subprocess.run(cmd, shell=True, check=True)
+    except subprocess.CalledProcessError as e:
+        sys.exit(f"VirSorter error: {e}")
 
 
-def run_blastn(output, threads, sample):
-    print("Run blastn Sorry")
-    db = "/cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/db"
-    if os.path.exists(f"{output}/8.blastncontigs/{sample}") is True:
-        subprocess.call([f"rm -rf {output}/8.blastncontigs/{sample}"], shell=True)
-    subprocess.call([f"mkdir -p {output}/8.blastncontigs/{sample}"], shell=True)
-    print(
-        f'blastn -query {output}/6.filter/{sample}/contig_1k.fasta -db {db}/blastn_database/crass -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/{sample}/crass.out')
-    ret = subprocess.call([
-        f'blastn -query {output}/6.filter/{sample}/contig_1k.fasta -db {db}/blastn_database/crass -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/{sample}/crass.out'],
-        shell=True)
-    if ret != 0:
-        sys.exit("blastn error")
-    print(
-        f'blastn -query {output}/6.filter/{sample}/contig_1k.fasta -db {db}/blastn_database/gpd -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/{sample}/gpd.out')
-    ret = subprocess.call([
-        f'blastn -query {output}/6.filter/{sample}/contig_1k.fasta -db {db}/blastn_database/gpd -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/{sample}/gpd.out'],
-        shell=True)
-    if ret != 0:
-        sys.exit("blastn error")
-    print(
-        f'blastn -query {output}/6.filter/{sample}/contig_1k.fasta -db {db}/blastn_database/gvd -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/{sample}/gvd.out')
-    ret = subprocess.call([
-        f'blastn -query {output}/6.filter/{sample}/contig_1k.fasta -db {db}/blastn_database/gvd -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/{sample}/gvd.out'],
-        shell=True)
-    if ret != 0:
-        sys.exit("blastn error")
-    print(
-        f'blastn -query {output}/6.filter/{sample}/contig_1k.fasta -db {db}/blastn_database/mgv -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/{sample}/mgv.out')
-    ret = subprocess.call([
-        f'blastn -query {output}/6.filter/{sample}/contig_1k.fasta -db {db}/blastn_database/mgv -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/{sample}/mgv.out'],
-        shell=True)
-    if ret != 0:
-        sys.exit("blastn error")
-    print(
-        f'blastn -query {output}/6.filter/{sample}/contig_1k.fasta -db {db}/blastn_database/ncbi -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/{sample}/ncbi.out')
-    ret = subprocess.call([
-        f'blastn -query {output}/6.filter/{sample}/contig_1k.fasta -db {db}/blastn_database/ncbi -num_threads {threads} -max_target_seqs 1 -outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " -out {output}/8.blastncontigs/{sample}/ncbi.out'],
-        shell=True)
-    if ret != 0:
-        sys.exit("Error: blastn error")
+def run_blastn(output, threads, sample, db):  # 添加db参数
+    db_path = os.path.join(db, "blastn_database")  # 使用参数传递的db路径
+    input_fasta = os.path.join(output, "5.filter", sample, "contig_1k.fasta")
+    blast_dir = os.path.join(output, "7.blastncontigs", sample)
+    os.makedirs(blast_dir, exist_ok=True)
+
+    databases = [
+        ("crass", "crass.out"),
+        ("gpd", "gpd.out"),
+        ("gvd", "gvd.out"),
+        ("mgv", "mgv.out"),
+        ("ncbi", "ncbi.out")
+    ]
+
+    for db_name, out_file in databases:
+        db_file = os.path.join(db_path, db_name)
+        if not os.path.exists(db_file + ".nhr"):  # 检查数据库是否存在
+            sys.exit(f"BLAST database {db_file} not found")
+
+        cmd = [
+            "blastn", "-query", input_fasta,
+            "-db", db_file,
+            "-num_threads", str(threads), "-max_target_seqs", "1",
+            "-outfmt", "6", "-out", os.path.join(blast_dir, out_file)
+        ]
+        try:
+            subprocess.run(cmd, check=True)
+        except subprocess.CalledProcessError as e:
+            sys.exit(f"BLASTn failed for {db_name}: {e}")
 
 
 def run_combination(output, sample):
     print("Combine virsorter and blastn results")
-    if os.path.exists(f"{output}/9.final-contigs/{sample}") is True:
-        subprocess.call([f"rm -rf {output}/9.final-contigs/{sample}"], shell=True)
-    subprocess.call([f"mkdir -p {output}/9.final-contigs/{sample}"], shell=True)
+    final_dir = os.path.join(output, "8.final-contigs", sample)
+    if os.path.exists(final_dir):
+        shutil.rmtree(final_dir)
+    os.makedirs(final_dir, exist_ok=True)
     ret = filter_vircontig(output, sample)
     if ret != 0:
         sys.exit("Error: combine error")
 
 
-def run_checkv(output, threads, sample):
-    db = "/cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/db"  # db
-    print("Run checkv")
-    if os.path.exists(f"{output}/10.checkv/{sample}") is True:
-        subprocess.call([f"rm -rf {output}/10.checkv/{sample}"], shell=True)
-    subprocess.call([f"mkdir -p {output}/10.checkv/{sample}"], shell=True)
-    print(
-        f"checkv end_to_end {output}/9.final-contigs/{sample}/contigs.fa {output}/10.checkv/{sample} -d {sys.path[0]}/checkv_database -t {threads}")
-    ret = subprocess.call([
-        f"checkv end_to_end {output}/9.final-contigs/{sample}/contigs.fa {output}/10.checkv/{sample} -d {db}/checkvdb/checkv-db-v1.0 -t {threads}"],
-        shell=True)
-    if ret != 0:
-        sys.exit("Error: checkv error")
+def run_checkv(output, threads, sample, db):
+    checkv_dir = os.path.join(output, "9.checkv", sample)
+    input_fasta = os.path.join(output, "8.final-contigs", sample, "contigs.fa")
+
+    if os.path.exists(checkv_dir):
+        shutil.rmtree(checkv_dir)
+    os.makedirs(checkv_dir, exist_ok=True)
+
+    cmd = [
+        "checkv", "end_to_end",
+        input_fasta,
+        checkv_dir,
+        "-t", str(threads),
+        "-d", os.path.join(db, "checkvdb/checkv-db-v1.0")
+    ]
+    try:
+        subprocess.run(cmd, check=True)
+    except Exception as e:
+        sys.exit(f"CheckV error: {e}")
 
 
 def high_quality_output(output, sample):
-    print("Get final output")
-    if os.path.exists(f"{output}/11.high_quality/{sample}") is True:
-        subprocess.call([f"rm -rf {output}/11.high_quality/{sample}"], shell=True)
-    subprocess.call([f"mkdir -p {output}/11.high_quality/{sample}"], shell=True)
-    filter_checkv(output, sample)
+    """生成高质量输出"""
+    print("Generating high-quality output")
+    hq_dir = os.path.join(output, "11.high_quality", sample)
+    try:
+        # 清理并创建目录
+        if os.path.exists(hq_dir):
+            shutil.rmtree(hq_dir)
+        os.makedirs(hq_dir, exist_ok=True)
+
+        # 调用过滤函数（假设已实现）
+        ret = filter_checkv(output, sample)
+        if ret != 0:
+            raise RuntimeError("filter_checkv returned non-zero status")
+    except Exception as e:
+        sys.exit(f"High-quality output error: {e}")
 
 
 def run_vsearch_2(output, threads, sample):
     print("Run vsearch (cluster)")
-    if os.path.exists(f"{output}/12.final_non_dup/{sample}") is True:
-        subprocess.call([f"rm -rf {output}/12.final_non_dup/{sample}"], shell=True)
-    subprocess.call([f"mkdir -p {output}/12.final_non_dup/{sample}"], shell=True)
-    print(
-        f"vsearch --cluster_fast {output}/11.high_quality/{sample}/contigs.fa --id 0.995 --centroids {output}/12.final_non_dup/{sample}/final.fasta --uc {output}/11.high_quality/{sample}/clusters.uc --maxseqlength -1 --threads {threads}")
-    ret = subprocess.call([
-        f"vsearch --cluster_fast {output}/11.high_quality/{sample}/contigs.fa --id 0.995 --centroids {output}/12.final_non_dup/{sample}/final.fasta --uc {output}/11.high_quality/{sample}/clusters.uc --maxseqlength -1 --threads {threads}"],
-        shell=True)
-    if ret != 0:
-        sys.exit("Error: vsearch error")
-    final_info(output, sample)
+    # if os.path.exists(f"{output}/12.final_non_dup/{sample}") is True:
+    #     subprocess.call([f"rm -rf {output}/12.final_non_dup/{sample}"], shell=True)
+    # subprocess.call([f"mkdir -p {output}/12.final_non_dup/{sample}"], shell=True)
+    # print(
+    #     f"vsearch --cluster_fast {output}/11.high_quality/{sample}/contigs.fa --id 0.995 --centroids {output}/12.final_non_dup/{sample}/final.fasta --uc {output}/11.high_quality/{sample}/clusters.uc --maxseqlength -1 --threads {threads}")
+    # ret = subprocess.call([
+    #     f"vsearch --cluster_fast {output}/11.high_quality/{sample}/contigs.fa --id 0.995 --centroids {output}/12.final_non_dup/{sample}/final.fasta --uc {output}/11.high_quality/{sample}/clusters.uc --maxseqlength -1 --threads {threads}"],
+    #     shell=True)
+    # if ret != 0:
+    #     sys.exit("Error: vsearch error")
+    # final_info(output, sample)
