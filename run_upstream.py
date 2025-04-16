@@ -31,7 +31,7 @@ if __name__ == '__main__':
     output = args.output
     sample1 = get_sample_name(os.path.basename(args.input1))
     sample2 = get_sample_name(os.path.basename(args.input2))
-    sample = sample1[:-2]  # 假设样本命名规范可靠
+    sample = sample1[:-2]
 
     # create the output directory if it does not exist
     create_output_file(output)
