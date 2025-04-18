@@ -106,10 +106,6 @@ def run_vsearch_1(output, sample, threads):
     os.makedirs(filter_dir, exist_ok=True)
 
     try:
-        subprocess.run(["pigz", "-p", str(threads), "-f",
-                        os.path.join(output, "3.bowtie2", sample, "*.fastq")],
-                       check=True)
-
         cmd = [
             "vsearch", "--sortbylength",
             os.path.join(output, "4.spades", sample, "scaffolds.fasta"),
@@ -132,14 +128,15 @@ def run_virsorter(output, threads, sample, db):
     try:
         # First pass
         cmd = (
-            f"module unload anaconda && "
-            f"source activate virsorter2 && "
+            f"module unload CentOS/7.9/Anaconda3/24.5.0 && "
+            f"source activate /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/miniconda3/envs/viroprofiler-virsorter2 && "
             f"virsorter run -w {virsorter_dir}/vs2-pass1 "
             f"-i {input_fasta} -j {threads} --min-length 3000 "
             f"--min-score 0.5 --keep-original-seq all"
         )
-        subprocess.run(cmd, shell=True, check=True)
-
+        s1 = subprocess.run(cmd, shell=True, check=True)
+        if s1 != 0:
+            print("VirSorter failed")
         # CheckV
         checkv_dir = os.path.join(virsorter_dir, "checkv")
         cmd = [
@@ -147,7 +144,9 @@ def run_virsorter(output, threads, sample, db):
             os.path.join(virsorter_dir, "vs2-pass1/final-viral-combined.fa"),
             checkv_dir, "-t", str(threads), "-d", f"{db}/checkvdb/checkv-db-v1.0 "
         ]
-        subprocess.run(cmd, check=True)
+        s2 = subprocess.run(cmd, shell=True, check=True)
+        if s2 != 0:
+            print("checkv failed")
 
         # Combine outputs
         with open(os.path.join(checkv_dir, "combined.fna"), "w") as out:
@@ -157,12 +156,14 @@ def run_virsorter(output, threads, sample, db):
 
         # Second pass
         cmd = (
-            f"source activate virsorter-env && "
+            f"module unload CentOS/7.9/Anaconda3/24.5.0 && source activate /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/miniconda3/envs/viroprofiler-virsorter2 && "
             f"virsorter run -w {virsorter_dir} "
             f"-i {checkv_dir}/combined.fna --prep-for-dramv "
             f"--min-length 5000 --min-score 0.5 all"
         )
-        subprocess.run(cmd, shell=True, check=True)
+        s3 = subprocess.run(cmd, shell=True, check=True)
+        if s3 != 0:
+            sys.exit("Error: virsorter2 error")
     except subprocess.CalledProcessError as e:
         sys.exit(f"VirSorter error: {e}")
 
