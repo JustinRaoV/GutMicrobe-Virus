@@ -131,13 +131,13 @@ def filter_vircontig(output, sample):
 
 
 def filter_checkv(output, sample):
-    dat = pd.read_table(f"{output}/10.checkv/{sample}/quality_summary.tsv", header=0)
+    dat = pd.read_table(f"{output}/9.checkv/{sample}/quality_summary.tsv", header=0)
     dat1 = dat[dat["checkv_quality"] == 'Complete']
     dat2 = dat[dat["checkv_quality"] == 'High-quality']
     dat3 = dat[dat["checkv_quality"] == 'Medium-quality']
     checkv = pd.concat([dat1, dat2, dat3])['contig_id'].to_list()
-    with open(f"{output}/9.final-contigs/{sample}/contigs.fa") as f:
-        f1 = open(f"{output}/11.high_quality/{sample}/contigs.fa", 'w')
+    with open(f"{output}/8.final-contigs/{sample}/contigs.fa") as f:
+        f1 = open(f"{output}/10.high_quality/{sample}/contigs.fa", 'w')
         while 1:
             line = f.readline()
             if line == '':

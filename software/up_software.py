@@ -124,29 +124,29 @@ def run_virsorter(output, threads, sample, db):
     os.path.join(db, "virsorter2")
     input_fasta = os.path.join(output, "5.filter", sample, "contig_1k.fasta")
     virsorter_dir = os.path.join(output, "6.vircontigs", sample)
-
+    os.makedirs(virsorter_dir, exist_ok=True)
     try:
         # First pass
         cmd = (
             f"module unload CentOS/7.9/Anaconda3/24.5.0 && "
             f"source activate /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/miniconda3/envs/viroprofiler-virsorter2 && "
             f"virsorter run -w {virsorter_dir}/vs2-pass1 "
-            f"-i {input_fasta} -j {threads} --min-length 3000 "
+            f"-i {input_fasta} -j {threads} --min-length 3000 --include-groups dsDNAphage,NCLDV,RNA,ssDNA,lavidaviridae  "
             f"--min-score 0.5 --keep-original-seq all"
         )
-        s1 = subprocess.run(cmd, shell=True, check=True)
+        s1 = subprocess.run(cmd, check=True)
         if s1 != 0:
-            print("VirSorter failed")
+            sys.exit("VirSorter failed")
         # CheckV
         checkv_dir = os.path.join(virsorter_dir, "checkv")
         cmd = [
             "checkv", "end_to_end",
             os.path.join(virsorter_dir, "vs2-pass1/final-viral-combined.fa"),
-            checkv_dir, "-t", str(threads), "-d", f"{db}/checkvdb/checkv-db-v1.0 "
+            checkv_dir, "-t", str(threads), "-d", f"{db}/checkvdb/checkv-db-v1.0"
         ]
-        s2 = subprocess.run(cmd, shell=True, check=True)
+        s2 = subprocess.run(cmd, check=True)
         if s2 != 0:
-            print("checkv failed")
+            sys.exit("checkv failed")
 
         # Combine outputs
         with open(os.path.join(checkv_dir, "combined.fna"), "w") as out:
@@ -159,7 +159,7 @@ def run_virsorter(output, threads, sample, db):
             f"module unload CentOS/7.9/Anaconda3/24.5.0 && source activate /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/miniconda3/envs/viroprofiler-virsorter2 && "
             f"virsorter run -w {virsorter_dir} "
             f"-i {checkv_dir}/combined.fna --prep-for-dramv "
-            f"--min-length 5000 --min-score 0.5 all"
+            f"--min-length 3 000 --min-score 0.5 all"
         )
         s3 = subprocess.run(cmd, shell=True, check=True)
         if s3 != 0:
@@ -191,7 +191,7 @@ def run_blastn(output, threads, sample, db):  # 添加db参数
             "blastn", "-query", input_fasta,
             "-db", db_file,
             "-num_threads", str(threads), "-max_target_seqs", "1",
-            "-outfmt", "6", "-out", os.path.join(blast_dir, out_file)
+            "-outfmt", "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames ", "-out", os.path.join(blast_dir, out_file)
         ]
         try:
             subprocess.run(cmd, check=True)
