@@ -103,6 +103,8 @@ def run_spades(output, threads, sample1, sample2, sample):
 
 def run_vsearch_1(output, sample, threads):
     filter_dir = os.path.join(output, "5.filter", sample)
+    if os.path.exists(filter_dir):
+        shutil.rmtree(filter_dir)  # 修复：使用shutil.rmtree删除非空目录
     os.makedirs(filter_dir, exist_ok=True)
 
     try:
@@ -124,6 +126,8 @@ def run_virsorter(output, threads, sample, db):
     os.path.join(db, "virsorter2")
     input_fasta = os.path.join(output, "5.filter", sample, "contig_1k.fasta")
     virsorter_dir = os.path.join(output, "6.vircontigs", sample)
+    if os.path.exists(virsorter_dir):
+        shutil.rmtree(virsorter_dir)  # 修复：使用shutil.rmtree删除非空目录
     os.makedirs(virsorter_dir, exist_ok=True)
     try:
         # First pass
@@ -134,7 +138,7 @@ def run_virsorter(output, threads, sample, db):
             f"-i {input_fasta} -j {threads} --min-length 3000 --include-groups dsDNAphage,NCLDV,RNA,ssDNA,lavidaviridae  "
             f"--min-score 0.5 --keep-original-seq all"
         )
-        s1 = subprocess.run(cmd, check=True)
+        s1 = subprocess.call(cmd, shell=True)
         if s1 != 0:
             sys.exit("VirSorter failed")
         # CheckV
@@ -159,7 +163,7 @@ def run_virsorter(output, threads, sample, db):
             f"module unload CentOS/7.9/Anaconda3/24.5.0 && source activate /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/miniconda3/envs/viroprofiler-virsorter2 && "
             f"virsorter run -w {virsorter_dir} "
             f"-i {checkv_dir}/combined.fna --prep-for-dramv "
-            f"--min-length 3 000 --min-score 0.5 all"
+            f"--min-length 3000 --min-score 0.5 all"
         )
         s3 = subprocess.run(cmd, shell=True, check=True)
         if s3 != 0:
