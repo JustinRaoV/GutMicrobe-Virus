@@ -143,12 +143,15 @@ def run_virsorter(output, threads, sample, db):
             sys.exit("VirSorter failed")
         # CheckV
         checkv_dir = os.path.join(virsorter_dir, "checkv")
+        if os.path.exists(checkv_dir):
+            shutil.rmtree(checkv_dir)  # 修复：使用shutil.rmtree删除非空目录
+        os.makedirs(checkv_dir, exist_ok=True)
         cmd = [
             "checkv", "end_to_end",
             os.path.join(virsorter_dir, "vs2-pass1/final-viral-combined.fa"),
             checkv_dir, "-t", str(threads), "-d", f"{db}/checkvdb/checkv-db-v1.0"
         ]
-        s2 = subprocess.run(cmd, check=True)
+        s2 = subprocess.call(cmd, shell=True)
         if s2 != 0:
             sys.exit("checkv failed")
 
@@ -165,7 +168,7 @@ def run_virsorter(output, threads, sample, db):
             f"-i {checkv_dir}/combined.fna --prep-for-dramv "
             f"--min-length 3000 --min-score 0.5 all"
         )
-        s3 = subprocess.run(cmd, shell=True, check=True)
+        s3 = subprocess.call(cmd, shell=True)
         if s3 != 0:
             sys.exit("Error: virsorter2 error")
     except subprocess.CalledProcessError as e:
@@ -195,7 +198,9 @@ def run_blastn(output, threads, sample, db):  # 添加db参数
             "blastn", "-query", input_fasta,
             "-db", db_file,
             "-num_threads", str(threads), "-max_target_seqs", "1",
-            "-outfmt", "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames ", "-out", os.path.join(blast_dir, out_file)
+            "-outfmt",
+            "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames ",
+            "-out", os.path.join(blast_dir, out_file)
         ]
         try:
             subprocess.run(cmd, check=True)
