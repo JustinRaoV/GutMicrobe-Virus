@@ -34,3 +34,8 @@ if __name__ == "__main__":
         sys.exit(1)
 
     generate_submit_script(script_dir)
+
+
+"""
+nohup dRep dereplicate drep_output/ -g all.fna -p 16 --S_ani 0.95 --cov_thresh 0.85 --ignoreGenomeQuality --length 3000 &
+"""

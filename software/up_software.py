@@ -1,3 +1,4 @@
+import csv
 import shutil
 import subprocess
 import os
@@ -146,11 +147,12 @@ def run_virsorter(output, threads, sample, db):
         if os.path.exists(checkv_dir):
             shutil.rmtree(checkv_dir)  # 修复：使用shutil.rmtree删除非空目录
         os.makedirs(checkv_dir, exist_ok=True)
-        cmd = [
-            "checkv", "end_to_end",
-            os.path.join(virsorter_dir, "vs2-pass1/final-viral-combined.fa"),
-            checkv_dir, "-t", str(threads), "-d", f"{db}/checkvdb/checkv-db-v1.0"
-        ]
+        cmd = f"""
+        checkv end_to_end {os.path.join(virsorter_dir, "vs2-pass1/final-viral-combined.fa")} {checkv_dir} \
+            -d {os.path.join(db, 'checkvdb/checkv-db-v1.0')} \
+            -t {threads}
+        """
+
         s2 = subprocess.call(cmd, shell=True)
         if s2 != 0:
             sys.exit("checkv failed")
@@ -243,7 +245,7 @@ def run_checkv(output, threads, sample, db):
 def high_quality_output(output, sample):
     """生成高质量输出"""
     print("Generating high-quality output")
-    hq_dir = os.path.join(output, "11.high_quality", sample)
+    hq_dir = os.path.join(output, "10.high_quality", sample)
     try:
         # 清理并创建目录
         if os.path.exists(hq_dir):
@@ -271,3 +273,98 @@ def run_vsearch_2(output, threads, sample):
     # if ret != 0:
     #     sys.exit("Error: vsearch error")
     # final_info(output, sample)
+
+
+def run_busco_filter(output, sample, db, threads):
+    busco_dir = os.path.join(output, "11.busco_filter", sample, "contigs.fa")
+    input_fasta = os.path.join(output, "10.high_quality", sample, "contigs.fa")
+    # 清理并创建目录
+    if os.path.exists(busco_dir):
+        shutil.rmtree(busco_dir)
+    os.makedirs(busco_dir, exist_ok=True)
+
+    # Step 1: 使用BUSCO
+    cmd = f"""
+    source activate /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/miniconda3/envs/busco &&
+     busco -f -i {input_fasta} -c {threads} -o {busco_dir} -m geno -l {db}/bacteria_odb12 --offline
+     """
+    s1 = subprocess.call(cmd, shell=True)
+    if s1 != 0:
+        sys.exit(f"busco filter failed: {s1}")
+    # Step 2: 解析基因预测结果统计总基因数
+    predicted_file = os.path.join(busco_dir, r"prodigal_output/predicted_genes/predicted.fna")
+    # Count genes per contig
+    predicted_counts = {}
+    with open(predicted_file, 'r') as pf:
+        for line in pf:
+            if line.startswith('>'):
+                header = line[1:].split()[0]
+                contig = '_'.join(header.split('_')[:-1])  # contig = part before first underscore
+                predicted_counts[contig] = predicted_counts.get(contig, 0) + 1
+    if not predicted_counts:
+        sys.exit("Error: No predicted genes found in predicted.fna.")
+    print(f"Total contigs with predicted genes: {len(predicted_counts)}")
+    total_genes = sum(predicted_counts.values())
+    print(f"Total predicted genes: {total_genes}")
+    full_table = os.path.join(busco_dir, r"run_bacteria_odb12/full_table.tsv")
+    busco_counts = {}
+    with open(full_table, 'r') as ft:
+        reader = csv.reader(ft, delimiter='\t')
+        headers = next(reader, None)
+        for row in reader:
+            if len(row) < 3:
+                continue
+            status = row[1].strip()
+            if status in ("Complete", "Fragmented"):
+                seq_field = row[2]
+                # If sequence field includes "file:contig:start-end", extract contig
+                if ':' in seq_field:
+                    parts = seq_field.split(':')
+                    contig_name = parts[-2] if len(parts) >= 2 else parts[0]
+                else:
+                    contig_name = seq_field
+                contig_name = contig_name.split()[0]
+                busco_counts[contig_name] = busco_counts.get(contig_name, 0) + 1
+
+    total_busco_hits = sum(busco_counts.values()) if busco_counts else 0
+    print(f"Total BUSCO genes (Complete/Frag): {total_busco_hits}")
+    print(f"Contigs with BUSCO hits: {len(busco_counts)}")
+    contigs_to_remove = []
+    for contig, gene_count in predicted_counts.items():
+        if gene_count == 0:
+            continue
+        busco_genes = busco_counts.get(contig, 0)
+        ratio = busco_genes / gene_count
+        print(f"Contig {contig}: {busco_genes}/{gene_count} BUSCO genes (ratio {ratio:.2%})")
+        if ratio > 0.05:
+            contigs_to_remove.append(contig)
+    if contigs_to_remove:
+        print(f"Removing {len(contigs_to_remove)} contigs with BUSCO ratio > 5%: {contigs_to_remove}")
+    else:
+        print("No contigs exceed BUSCO ratio threshold (5%).")
+    input_fasta = os.path.join(output, "8.filter", sample, "filtered_contigs.fa")
+    output_fasta = os.path.join(busco_dir, "filtered_contigs.fa")
+    # Read input FASTA sequences
+    contig_seqs = {}
+    with open(input_fasta, 'r') as f:
+        header = None
+        seq_lines = []
+        for line in f:
+            line = line.strip()
+            if line.startswith('>'):
+                if header:
+                    contig_seqs[header] = ''.join(seq_lines)
+                header = line[1:].split()[0]
+                seq_lines = []
+            else:
+                seq_lines.append(line)
+        if header:
+            contig_seqs[header] = ''.join(seq_lines)
+
+    # Write filtered sequences
+    with open(output_fasta, 'w') as out:
+        for hdr, seq in contig_seqs.items():
+            if hdr not in contigs_to_remove:
+                out.write(f">{hdr}\n{seq}\n")
+
+    print(f"Filtered contigs saved to: {output_fasta}")

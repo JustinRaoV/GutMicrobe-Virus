@@ -126,12 +126,12 @@ if __name__ == '__main__':
         with open(log_path, "w") as f:
             f.write(f"{log}\n")
 
-    # cluster contigs and get final non-redundant contigs
-    # if log < 11:
-    #     run_vsearch_2(output, threads, sample)
-    #     log = 11
-    #     with open(log_path, "w") as f:
-    #         f.write(f"{log}\n")
+    # BUSSO
+    if log < 11:
+        run_busco_filter(output, sample, db, threads)
+        log = 11
+        with open(log_path, "w") as f:
+            f.write(f"{log}\n")
 
     print("all steps finished")
     if args.remove_inter_result:
