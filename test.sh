@@ -1,3 +1,5 @@
+python run_upstream.py     /public/group_share_data/TonyWuLab/rj/data/test_virus/SRR10983056_1.fastq.gz     /public/group_share_data/TonyWuLab/rj/data/test_virus/SRR10983056_2.fastq.gz     -t 8     --host hg38      -k     -o /public/group_share_data/TonyWuLab/rj/testoutput
+
 #!/bin/bash
 
 module load CentOS/7.9/Anaconda3/24.5.0
