@@ -5,132 +5,85 @@ import pandas as pd
 
 
 def get_sample_name(file):
-    if file[-6:] == '.fq.gz' or file[-6:] == '.fastq':
-        return file[0: -6]
-    elif file[-3:] == '.fq':
-        return file[0: -3]
-    elif file[-9:] == '.fastq.gz':
-        return file[0: -9]
+    if file.endswith('.fq.gz') or file.endswith('.fastq'):
+        return file[:-6]
+    elif file.endswith('.fq'):
+        return file[:-3]
+    elif file.endswith('.fastq.gz'):
+        return file[:-9]
 
 
-def create_output_file(output):
-    if os.path.exists(output) is False:
-        subprocess.call([f"mkdir {output}"], shell=True)
+
+def _filter_blastn_file(filepath, dbname, blastn):
+    df = pd.read_table(filepath, header=None)
+    df.columns = [
+        'qseqid', 'sseqid', 'pident', 'evalue', 'qcovs', 'nident', 'qlen', 'slen', 'length',
+        'mismatch', 'positive', 'ppos', 'gapopen', 'gaps', 'qstart', 'qend', 'sstart', 'send',
+        'bitscore', 'qcovhsp', 'qcovus', 'qseq', 'sstrand', 'frames'
+    ]
+    df = df[(df['pident'] >= 50) & (df['evalue'] <= 1e-10) & (df['qcovs'] >= 80)]
+    for qseqid in df['qseqid']:
+        if qseqid not in blastn:
+            blastn.append(qseqid)
+    df = df.iloc[:, :5]
+    df['database'] = dbname
+    return df
 
 
 def filter_vircontig(output, sample, paths):
-    filtered = pd.DataFrame(columns=['qseqid', 'sseqid', 'pident', 'evalue', 'qcovs', 'database'])
+    filtered = pd.DataFrame(columns=pd.Index(['qseqid', 'sseqid', 'pident', 'evalue', 'qcovs', 'database']))
     blastn = []
     virso = []
     blastn_dir = os.path.join(paths["blastn"], sample)
-    if os.path.getsize(f"{blastn_dir}/crass.out") != 0:
-        crass = pd.read_table(f"{blastn_dir}/crass.out", header=None)
-        crass.columns = ['qseqid', 'sseqid', 'pident', 'evalue', 'qcovs', 'nident', 'qlen', 'slen', 'length',
-                         'mismatch', 'positive', 'ppos', 'gapopen', 'gaps', 'qstart', 'qend', 'sstart', 'send',
-                         'bitscore', 'qcovhsp', 'qcovus', 'qseq', 'sstrand', 'frames']
-        crass = crass[crass['pident'] >= 50]
-        crass = crass[crass['evalue'] <= 1e-10]
-        crass = crass[crass['qcovs'] >= 80]
-        for i in range(len(crass)):
-            if crass.iloc[i, 0] not in blastn:
-                blastn.append(crass.iloc[i, 0])
-        crass = crass.iloc[:, :5]
-        crass['database'] = ['crass'] * len(crass)
-        filtered = pd.concat([filtered, crass], axis=0)
-    if os.path.getsize(f"{blastn_dir}/gpd.out") != 0:
-        gpd = pd.read_table(f"{blastn_dir}/gpd.out", header=None)
-        gpd.columns = ['qseqid', 'sseqid', 'pident', 'evalue', 'qcovs', 'nident', 'qlen', 'slen', 'length', 'mismatch',
-                       'positive', 'ppos', 'gapopen', 'gaps', 'qstart', 'qend', 'sstart', 'send', 'bitscore', 'qcovhsp',
-                       'qcovus', 'qseq', 'sstrand', 'frames']
-        gpd = gpd[gpd['pident'] >= 50]
-        gpd = gpd[gpd['evalue'] <= 1e-10]
-        gpd = gpd[gpd['qcovs'] >= 80]
-        for i in range(len(gpd)):
-            if gpd.iloc[i, 0] not in blastn:
-                blastn.append(gpd.iloc[i, 0])
-        gpd = gpd.iloc[:, :5]
-        gpd['database'] = ['gpd'] * len(gpd)
-        filtered = pd.concat([filtered, gpd], axis=0)
-    if os.path.getsize(f"{blastn_dir}/gvd.out") != 0:
-        gvd = pd.read_table(f"{blastn_dir}/gvd.out", header=None)
-        gvd.columns = ['qseqid', 'sseqid', 'pident', 'evalue', 'qcovs', 'nident', 'qlen', 'slen', 'length', 'mismatch',
-                       'positive', 'ppos', 'gapopen', 'gaps', 'qstart', 'qend', 'sstart', 'send', 'bitscore', 'qcovhsp',
-                       'qcovus', 'qseq', 'sstrand', 'frames']
-        gvd = gvd[gvd['pident'] >= 50]
-        gvd = gvd[gvd['evalue'] <= 1e-10]
-        gvd = gvd[gvd['qcovs'] >= 80]
-        for i in range(len(gvd)):
-            if gvd.iloc[i, 0] not in blastn:
-                blastn.append(gvd.iloc[i, 0])
-        gvd = gvd.iloc[:, :5]
-        gvd['database'] = ['gvd'] * len(gvd)
-        filtered = pd.concat([filtered, gvd], axis=0)
-    if os.path.getsize(f"{blastn_dir}/mgv.out") != 0:
-        mgv = pd.read_table(f"{blastn_dir}/mgv.out", header=None)
-        mgv.columns = ['qseqid', 'sseqid', 'pident', 'evalue', 'qcovs', 'nident', 'qlen', 'slen', 'length', 'mismatch',
-                       'positive', 'ppos', 'gapopen', 'gaps', 'qstart', 'qend', 'sstart', 'send', 'bitscore', 'qcovhsp',
-                       'qcovus', 'qseq', 'sstrand', 'frames']
-        mgv = mgv[mgv['pident'] >= 50]
-        mgv = mgv[mgv['evalue'] <= 1e-10]
-        mgv = mgv[mgv['qcovs'] >= 80]
-        for i in range(len(mgv)):
-            if mgv.iloc[i, 0] not in blastn:
-                blastn.append(mgv.iloc[i, 0])
-        mgv = mgv.iloc[:, :5]
-        mgv['database'] = ['mgv'] * len(mgv)
-        filtered = pd.concat([filtered, mgv], axis=0)
-    if os.path.getsize(f"{blastn_dir}/ncbi.out") != 0:
-        ncbi = pd.read_table(f"{blastn_dir}/ncbi.out", header=None)
-        ncbi.columns = ['qseqid', 'sseqid', 'pident', 'evalue', 'qcovs', 'nident', 'qlen', 'slen', 'length', 'mismatch',
-                        'positive', 'ppos', 'gapopen', 'gaps', 'qstart', 'qend', 'sstart', 'send', 'bitscore',
-                        'qcovhsp', 'qcovus', 'qseq', 'sstrand', 'frames']
-        ncbi = ncbi[ncbi['pident'] >= 50]
-        ncbi = ncbi[ncbi['evalue'] <= 1e-10]
-        ncbi = ncbi[ncbi['qcovs'] >= 80]
-        for i in range(len(ncbi)):
-            if ncbi.iloc[i, 0] not in blastn:
-                blastn.append(ncbi.iloc[i, 0])
-        ncbi = ncbi.iloc[:, :5]
-        ncbi['database'] = ['ncbi'] * len(ncbi)
-        filtered = pd.concat([filtered, ncbi], axis=0)
+    blastn_files = [
+        ("crass.out", "crass"),
+        ("gpd.out", "gpd"),
+        ("gvd.out", "gvd"),
+        ("mgv.out", "mgv"),
+        ("ncbi.out", "ncbi")
+    ]
+    for fname, dbname in blastn_files:
+        fpath = os.path.join(blastn_dir, fname)
+        if os.path.getsize(fpath) != 0:
+            filtered = pd.concat([filtered, _filter_blastn_file(fpath, dbname, blastn)], axis=0)
     vircontigs_dir = os.path.join(paths["virsorter"], sample)
-    if os.path.getsize(f"{vircontigs_dir}/final-viral-score.tsv") != 0:
-        dat = pd.read_table(f"{vircontigs_dir}/final-viral-score.tsv", header=0)
-        for i in range(len(dat)):
-            if dat.iloc[i, 0] not in virso:
-                virso.append(dat.iloc[i, 0].split('|')[0])
-    info = pd.DataFrame(columns=['contig', 'blastn', 'virsorter'])
-    num = 0
+    virsorter_file = os.path.join(vircontigs_dir, "final-viral-score.tsv")
+    if os.path.getsize(virsorter_file) != 0:
+        dat = pd.read_table(virsorter_file, header=0)
+        for contig in dat.iloc[:, 0]:
+            key = contig.split('|')[0]
+            if key not in virso:
+                virso.append(key)
+    info = []
     vsearch_dir = os.path.join(paths["vsearch"], sample)
+    final_dir = os.path.join(paths["combination"], sample)
     with open(f"{vsearch_dir}/contig_1k.fasta") as f:
         line = f.readline()
         if line == '':
             return 1
-        final_dir = os.path.join(paths["combination"], sample)
         f1 = open(f"{final_dir}/contigs.fa", 'w')
-        while 1:
-            contig = line[1: -1]
+        while line:
+            contig = line[1:-1]
             out = [contig, 0, 0]
             line = f.readline()
             seq = ''
-            while line != '' and line[0] != '>':
-                seq = seq + line[0: -1]
+            while line and line[0] != '>':
+                seq += line[:-1]
                 line = f.readline()
             if contig in blastn or contig in virso:
-                print(f">{contig}", file=f1)
-                print(seq, file=f1)
+                f1.write(f">{contig}\n{seq}\n")
                 if contig in blastn:
                     out[1] = 1
                 if contig in virso:
                     out[2] = 1
-                info.loc[num] = out
-                num += 1
-            if line == '':
+                info.append(out)
+            if not line:
                 break
         f1.close()
-    info.to_csv(f"{final_dir}/info.txt", header=True, index=False, sep='\t')
+    info_df = pd.DataFrame(info, columns=pd.Index(['contig', 'blastn', 'virsorter']))
+    info_df.to_csv(f"{final_dir}/info.txt", header=True, index=False, sep='\t')
     filtered = filtered.sort_values(by=['qcovs', 'pident', 'evalue'], ascending=[False, False, True])
-    filtered.drop_duplicates(subset=['qseqid'])
+    filtered = filtered.drop_duplicates(subset=['qseqid'])
     filtered.to_csv(f"{final_dir}/blastn_info.txt", header=True, index=False, sep='\t')
     return 0
 
@@ -138,24 +91,18 @@ def filter_vircontig(output, sample, paths):
 def filter_checkv(output, sample, paths):
     checkv_dir = os.path.join(paths["checkv"], sample)
     dat = pd.read_table(f"{checkv_dir}/quality_summary.tsv", header=0)
-    dat1 = dat[dat["checkv_quality"] == 'Complete']
-    dat2 = dat[dat["checkv_quality"] == 'High-quality']
-    dat3 = dat[dat["checkv_quality"] == 'Medium-quality']
-    checkv = pd.concat([dat1, dat2, dat3])['contig_id'].tolist()
+    checkv = dat[dat["checkv_quality"].isin(['Complete', 'High-quality', 'Medium-quality'])]['contig_id'].tolist()
     final_dir = os.path.join(paths["combination"], sample)
     highq_dir = os.path.join(paths["high_quality"], sample)
-    with open(f"{final_dir}/contigs.fa") as f:
-        f1 = open(f"{highq_dir}/contigs.fa", 'w')
-        while 1:
+    with open(f"{final_dir}/contigs.fa") as f, open(f"{highq_dir}/contigs.fa", 'w') as f1:
+        while True:
             line = f.readline()
-            if line == '':
+            if not line:
                 break
-            contig = line[1: -1]
+            contig = line[1:-1]
             seq = f.readline()[:-1]
             if contig in checkv:
-                print(f">{contig}", file=f1)
-                print(seq, file=f1)
-        f1.close()
+                f1.write(f">{contig}\n{seq}\n")
 
 
 def final_info(output, sample, paths):
@@ -172,20 +119,14 @@ def final_info(output, sample, paths):
     contig = []
     contig_blastn = []
     with open(f"{nondup_dir}/temp.txt", "r") as fi:
-        while 1:
-            line = fi.readline()
-            if line == '':
-                break
-            contig.append(line[1: -1])
+        for line in fi:
+            contig.append(line[1:-1])
     for ct in contig:
         if info.loc[ct, 'blastn'] == 1:
             contig_blastn.append(ct)
-    checkv.loc[contig, "checkv_quality"].to_csv(f"{nondup_dir}/completeness.txt", header=True,
-                                                index=True,
-                                                sep='\t')
+    checkv.loc[contig, "checkv_quality"].to_csv(f"{nondup_dir}/completeness.txt", header=True, index=True, sep='\t')
     info.loc[contig].to_csv(f"{nondup_dir}/info.txt", header=True, index=True, sep='\t')
-    blastn.loc[contig_blastn].to_csv(f"{nondup_dir}/blastn_info.txt", header=True, index=True,
-                                     sep='\t')
+    blastn.loc[contig_blastn].to_csv(f"{nondup_dir}/blastn_info.txt", header=True, index=True, sep='\t')
     subprocess.call([f"rm {nondup_dir}/temp.txt"], shell=True)
 
 

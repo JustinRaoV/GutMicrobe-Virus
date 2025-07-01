@@ -4,6 +4,7 @@ import sys
 import os
 import shutil
 import configparser
+from .tools import filter_vircontig, filter_checkv, final_info
 
 
 def get_software_paths(config_file="config.ini"):
@@ -177,16 +178,21 @@ def high_quality_output(**context):
     filter_checkv(context['output'], context['sample'], context['paths'])
 
 
-def run_vsearch_2(output, threads, sample):
+def run_vsearch_2(**context):
     print("Run vsearch (cluster)")
-    if os.path.exists(f"{output}/12.final_non_dup/{sample}") is True:
-        subprocess.call([f"rm -rf {output}/12.final_non_dup/{sample}"], shell=True)
-    subprocess.call([f"mkdir -p {output}/12.final_non_dup/{sample}"], shell=True)
-    print(
-        f"vsearch --cluster_fast {output}/11.high_quality/{sample}/contigs.fa --id 0.995 --centroids {output}/12.final_non_dup/{sample}/final.fasta --uc {output}/11.high_quality/{sample}/clusters.uc --maxseqlength -1 --threads {threads}")
-    ret = subprocess.call([
-        f"vsearch --cluster_fast {output}/11.high_quality/{sample}/contigs.fa --id 0.995 --centroids {output}/12.final_non_dup/{sample}/final.fasta --uc {output}/11.high_quality/{sample}/clusters.uc --maxseqlength -1 --threads {threads}"],
-        shell=True)
+    output = context['output']
+    threads = context['threads']
+    sample = context['sample']
+    paths = context['paths']
+    final_non_dup_dir = f"{output}/12.final_non_dup/{sample}"
+    if os.path.exists(final_non_dup_dir):
+        subprocess.call([f"rm -rf {final_non_dup_dir}"], shell=True)
+    subprocess.call([f"mkdir -p {final_non_dup_dir}"], shell=True)
+    vsearch_cmd = (
+        f"vsearch --cluster_fast {output}/11.high_quality/{sample}/contigs.fa --id 0.995 --centroids {final_non_dup_dir}/final.fasta --uc {output}/11.high_quality/{sample}/clusters.uc --maxseqlength -1 --threads {threads}"
+    )
+    print(vsearch_cmd)
+    ret = subprocess.call([vsearch_cmd], shell=True)
     if ret != 0:
         sys.exit("Error: vsearch error")
-    final_info(output, sample)
+    final_info(output, sample, paths)
