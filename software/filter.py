@@ -127,29 +127,30 @@ def run_busco_filter(**context):
     threads = context['threads']
     paths = context['paths']
     
-    busco_dir = os.path.join(paths["busco_filter"], sample)
+    abs_busco_dir = os.path.join(paths["busco_filter"], sample)  # 绝对路径
+    busco_dir = os.path.relpath(abs_busco_dir, start=os.getcwd())  # 相对路径用于 BUSCO
     input_fasta = os.path.join(paths["high_quality"], sample, "contigs.fa")
     
-    # 清理并创建目录
-    if os.path.exists(busco_dir):
+    # 清理并创建目录（用绝对路径）
+    if os.path.exists(abs_busco_dir):
         try:
-            shutil.rmtree(busco_dir)
+            shutil.rmtree(abs_busco_dir)
         except Exception as e:
-            print(f"[busco_filter] Warning: Failed to remove {busco_dir}: {e}")
-    os.makedirs(busco_dir, exist_ok=True)
+            print(f"[busco_filter] Warning: Failed to remove {abs_busco_dir}: {e}")
+    os.makedirs(abs_busco_dir, exist_ok=True)
 
-    # Step 1: 使用BUSCO
+    # Step 1: 使用BUSCO（用相对路径）
     cmd = f"""
     source activate /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/miniconda3/envs/busco &&
-     busco -f -i {input_fasta} -c {threads} -o {busco_dir} -m geno -l {db}/bacteria_odb12 --offline
+    busco -f -i {input_fasta} -c {threads} -o {busco_dir} -m geno -l {db}/bacteria_odb12 --offline
      """
     print(f"[busco_filter] Running: {cmd}")
     s1 = subprocess.call(cmd, shell=True)
     if s1 != 0:
         sys.exit(f"ERROR: busco filter failed: {s1}")
     
-    # Step 2: 解析基因预测结果统计总基因数
-    predicted_file = os.path.join(busco_dir, r"prodigal_output/predicted_genes/predicted.fna")
+    # Step 2: 解析基因预测结果统计总基因数（用绝对路径）
+    predicted_file = os.path.join(abs_busco_dir, r"prodigal_output/predicted_genes/predicted.fna")
     # Count genes per contig
     predicted_counts = {}
     with open(predicted_file, 'r') as pf:
@@ -164,7 +165,7 @@ def run_busco_filter(**context):
     total_genes = sum(predicted_counts.values())
     print(f"Total predicted genes: {total_genes}")
     
-    full_table = os.path.join(busco_dir, r"run_bacteria_odb12/full_table.tsv")
+    full_table = os.path.join(abs_busco_dir, r"run_bacteria_odb12/full_table.tsv")
     busco_counts = {}
     with open(full_table, 'r') as ft:
         reader = csv.reader(ft, delimiter='\t')
@@ -204,7 +205,7 @@ def run_busco_filter(**context):
         print("No contigs exceed BUSCO ratio threshold (5%).")
     
     input_fasta = os.path.join(paths["high_quality"], sample, "contigs.fa")
-    output_fasta = os.path.join(busco_dir, "filtered_contigs.fa")
+    output_fasta = os.path.join(abs_busco_dir, "filtered_contigs.fa")
     
     # Read input FASTA sequences
     contig_seqs = {}
@@ -230,3 +231,4 @@ def run_busco_filter(**context):
                 out.write(f">{hdr}\n{seq}\n")
 
     print(f"Filtered contigs saved to: {output_fasta}")
+    
