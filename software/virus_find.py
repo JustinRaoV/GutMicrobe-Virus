@@ -55,7 +55,7 @@ def run_virsorter(**context):
     virsorter_dir = os.path.join(context['paths']["virsorter"], context['sample'])
     if os.path.exists(virsorter_dir):
         try:
-            shutil.rmtree(virsorter_dir)
+           shutil.rmtree(virsorter_dir)
         except Exception as e:
             print(f"[virsorter] Warning: Failed to remove {virsorter_dir}: {e}")
     os.makedirs(virsorter_dir, exist_ok=True)
@@ -64,6 +64,8 @@ def run_virsorter(**context):
     checkv_path = software['checkv']
     try:
         cmd1 = (
+            f"module unload CentOS/7.9/Anaconda3/24.5.0 && "
+            f"source activate /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/miniconda3/envs/viroprofiler-virsorter2 && "
             f"{virsorter_path} run --prep-for-dramv -w {virsorter_dir}/vs2-pass1 "
             f"-i {input_fasta} -j {context['threads']} --min-length 3000 --include-groups dsDNAphage,NCLDV,RNA,ssDNA,lavidaviridae  "
             f"--min-score 0.5 --keep-original-seq all")
@@ -80,7 +82,7 @@ def run_virsorter(**context):
         os.makedirs(checkv_dir, exist_ok=True)
         cmd2 = (
             f"{checkv_path} end_to_end {os.path.join(virsorter_dir, 'vs2-pass1/final-viral-combined.fa')} {checkv_dir} "
-            f"-d {os.path.join(db, 'checkv-db-v1.5')} -t {context['threads']}"
+            f"-d {os.path.join(db, 'checkvdb/checkv-db-v1.4')} -t {context['threads']}"
         )
         print(f"[virsorter] Running: {cmd2}")
         s2 = subprocess.call(cmd2, shell=True)
@@ -91,6 +93,8 @@ def run_virsorter(**context):
                 with open(os.path.join(checkv_dir, f)) as infile:
                     out.write(infile.read())
         cmd3 = (
+            f"module unload CentOS/7.9/Anaconda3/24.5.0 && "
+            f"source activate /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/miniconda3/envs/viroprofiler-virsorter2 && "
             f"{virsorter_path}  run -w {virsorter_dir} "
             f"-i {checkv_dir}/combined.fna --prep-for-dramv "
             f"--min-length 3000 --min-score 0.5 all"

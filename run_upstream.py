@@ -49,6 +49,7 @@ def register_steps():
         ("combination", run_combination),
         ("checkv", run_checkv),
         ("high_quality", high_quality_output),
+        ("busco_filter", run_busco_filter),
     ]
 
 
@@ -60,7 +61,7 @@ def build_context(args):
     sample = sample1[0: -2]
     host_list = args.host.split(',') if args.host else None
     steps_name = [
-        "trimmed", "host_removed", "assembly", "vsearch", "virsorter", "blastn", "combination", "checkv", "high_quality"
+        "trimmed", "host_removed", "assembly", "vsearch", "virsorter", "blastn", "combination", "checkv", "high_quality", "busco_filter"
     ]
     paths = get_paths(args.output, steps_name)
     return {
