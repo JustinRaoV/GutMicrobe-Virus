@@ -8,3 +8,7 @@ source activate /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/minico
 cd /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/testflow/GutMicrobe-Virus
 
 /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/miniconda3/envs/ivirp/bin/python run_upstream.py     ../data/testR1.fq.gz     ../data/testR2.fq.gz     -t 32     --host hg38      -k     -o /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/testflow/GutMicrobe-Virus/result --db /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/db
+
+# 激活phadown环境并测试viruslib_pipeline
+source activate phadown
+python viruslib_pipeline.py -t 32 -o /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/testflow/GutMicrobe-Virus/viruslib_test_out --log-level INFO
