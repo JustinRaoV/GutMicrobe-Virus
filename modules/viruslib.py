@@ -1,6 +1,7 @@
 import os
 import subprocess
 import sys
+from core.config_manager import get_config
 
 def run_merge_contigs(**context):
     """
@@ -71,12 +72,13 @@ def run_vclust_dedup(**context):
         else:
             i += 1
     
-    # 设置默认值
-    min_ident = params_dict.get('--min-ident', '0.95')
-    out_ani = params_dict.get('--out-ani', '0.95')
-    out_qcov = params_dict.get('--out-qcov', '0.85')
-    ani = params_dict.get('--ani', '0.95')
-    qcov = params_dict.get('--qcov', '0.85')
+    # 从配置文件获取默认值
+    config = get_config()
+    min_ident = params_dict.get('--min-ident', config['parameters']['vclust_params'].split('--min-ident ')[1].split()[0])
+    out_ani = params_dict.get('--out-ani', config['parameters']['vclust_params'].split('--out-ani ')[1].split()[0])
+    out_qcov = params_dict.get('--out-qcov', config['parameters']['vclust_params'].split('--out-qcov ')[1].split()[0])
+    ani = params_dict.get('--ani', config['parameters']['vclust_params'].split('--ani ')[1].split()[0])
+    qcov = params_dict.get('--qcov', config['parameters']['vclust_params'].split('--qcov ')[1].split()[0])
     
     logger.info(f"vclust去冗余参数: min-ident={min_ident}, out-ani={out_ani}, out-qcov={out_qcov}, ani={ani}, qcov={qcov}")
     logger.info(f"vclust线程数: {threads}")
@@ -233,7 +235,10 @@ def run_cdhit_dedup(**context):
     input_fa = os.path.join(context['paths']['gene_annotation'], 'gene.fq')
     output_fa = os.path.join(step_dir, 'gene_cdhit.fq')
 
-    cmd = f"{cdhit_bin} -i {input_fa} -o {output_fa} -c 0.95 -n 10 -d 0 -T {threads}"
+    # 从配置文件获取cdhit参数
+    cdhit_identity = config['parameters']['cdhit_identity']
+    cdhit_word_length = config['parameters']['cdhit_word_length']
+    cmd = f"{cdhit_bin} -i {input_fa} -o {output_fa} -c {cdhit_identity} -n {cdhit_word_length} -d 0 -T {threads}"
     logger.info(f"执行cd-hit-est去冗余: {cmd}")
     subprocess.run(cmd, shell=True, check=True)
     logger.info(f"cd-hit-est去冗余完成: {output_fa}")

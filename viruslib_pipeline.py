@@ -136,7 +136,6 @@ def main():
 
     logger.info("所有步骤完成")
     logger.info("VirusLib Pipeline 成功完成")
-    print("VirusLib pipeline finished successfully.")
 
 
 if __name__ == '__main__':

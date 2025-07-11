@@ -159,7 +159,6 @@ def main():
         logger.info("清理中间结果文件")
         remove_inter_result(context['output'])
     logger.info("Pipeline 成功完成")
-    print("Pipeline finished successfully.")
 
 
 if __name__ == '__main__':

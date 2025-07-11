@@ -202,19 +202,27 @@ class PerformanceMonitor:
         if not summary:
             return suggestions
         
+        # 从配置文件获取阈值
+        from core.config_manager import get_config
+        config = get_config()
+        cpu_high_threshold = float(config['parameters']['monitor_cpu_high_threshold'])
+        cpu_low_threshold = float(config['parameters']['monitor_cpu_low_threshold'])
+        memory_high_threshold = float(config['parameters']['monitor_memory_high_threshold'])
+        disk_io_threshold = float(config['parameters']['monitor_disk_io_threshold'])
+        
         # CPU使用率建议
-        if summary['cpu']['avg'] > 80:
+        if summary['cpu']['avg'] > cpu_high_threshold:
             suggestions.append("CPU使用率较高，建议增加线程数或优化算法")
-        elif summary['cpu']['avg'] < 20:
+        elif summary['cpu']['avg'] < cpu_low_threshold:
             suggestions.append("CPU使用率较低，可以考虑增加并行度")
         
         # 内存使用建议
-        if summary['memory']['avg'] > 80:
+        if summary['memory']['avg'] > memory_high_threshold:
             suggestions.append("内存使用率较高，建议增加内存或优化内存使用")
         
         # 磁盘IO建议
         total_disk_io = summary['total_disk_read_mb'] + summary['total_disk_write_mb']
-        if total_disk_io > 1000:  # 1GB
+        if total_disk_io > disk_io_threshold:  # 1GB
             suggestions.append("磁盘IO较大，建议使用SSD或优化文件操作")
         
         return suggestions

@@ -245,13 +245,15 @@ def run_busco_filter(**context):
         busco_genes = busco_counts.get(contig, 0)
         ratio = busco_genes / gene_count
         print(f"Contig {contig}: {busco_genes}/{gene_count} BUSCO genes (ratio {ratio:.2%})")
-        if ratio > 0.05:
+        config = get_config()
+        filter_threshold = float(config['parameters']['filter_ratio_threshold'])
+        if ratio > filter_threshold:
             contigs_to_remove.append(contig)
     
     if contigs_to_remove:
-        print(f"Removing {len(contigs_to_remove)} contigs with BUSCO ratio > 5%: {contigs_to_remove}")
+        print(f"Removing {len(contigs_to_remove)} contigs with BUSCO ratio > {filter_threshold*100:.0f}%: {contigs_to_remove}")
     else:
-        print("No contigs exceed BUSCO ratio threshold (5%).")
+        print(f"No contigs exceed BUSCO ratio threshold ({filter_threshold*100:.0f}%).")
     
     input_fasta = os.path.join(paths["high_quality"], sample, "contigs.fa")
     output_fasta = os.path.join(abs_busco_dir, "filtered_contigs.fa")

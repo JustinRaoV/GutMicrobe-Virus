@@ -148,7 +148,10 @@ def main():
         step_context['error_handler'] = error_handler
         
         # 执行丰度分析
-        run_abundance_analysis(**step_context)
+        success = run_abundance_analysis(**step_context)
+        if not success:
+            logger.error("丰度分析失败")
+            sys.exit(1)
         
         logger.step_complete("abundance_analysis", 1)
         
@@ -157,7 +160,6 @@ def main():
         raise
 
     logger.info("下游分析完成")
-    print("Downstream analysis finished successfully.")
 
 
 if __name__ == '__main__':
