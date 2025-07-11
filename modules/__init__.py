@@ -9,10 +9,13 @@ from .virus_detection import *
 from .virus_analysis import *
 from .virus_quality import *
 from .filter import run_fastp, run_host_removal, run_assembly, run_busco_filter
+from .abundance_analysis import run_abundance_analysis, run_coverm_contig, run_coverm_gene
 
 __all__ = [
     # 主要功能
     'run_vsearch', 'run_virsorter', 'run_dvf', 'run_vibrant', 
     'run_blastn', 'run_combination', 'run_checkv', 'high_quality_output',
-    'run_checkv_prefilter', 'run_fastp', 'run_host_removal', 'run_assembly', 'run_busco_filter'
+    'run_checkv_prefilter', 'run_fastp', 'run_host_removal', 'run_assembly', 'run_busco_filter',
+    # 丰度分析功能
+    'run_abundance_analysis', 'run_coverm_contig', 'run_coverm_gene'
 ] 

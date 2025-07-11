@@ -1,13 +1,13 @@
+import os
 import subprocess
+import sys
 
 def run_merge_contigs(**context):
     """
     高效合并所有样本的filtered_contigs.fa文件，使用shell cat命令，线程数由context['threads']控制（如用于pigz等多线程工具时）
     """
-    import os
 
     busco_dir = context['busco_dir']
-    viruslib_dir = context['viruslib_dir']
     logger = context['logger']
     threads = context.get('threads', 1)
     step_dir = context['paths']['merge_contigs']
@@ -39,9 +39,7 @@ def run_merge_contigs(**context):
 
 def run_vclust_dedup(**context):
     """使用vclust进行去冗余，包含四个步骤：prefilter、align、cluster、提取代表序列，并对最终contig重命名为vOTU1、vOTU2..."""
-    import os
-    import subprocess
-    viruslib_dir = context['viruslib_dir']
+
     config = context['config']
     logger = context['logger']
     threads = context.get('threads', 1)
@@ -137,9 +135,7 @@ def run_vclust_dedup(**context):
 
 def run_phabox2_prediction(**context):
     """使用phabox2进行病毒预测，命令格式参考用户指定"""
-    import os
-    import subprocess
-    viruslib_dir = context['viruslib_dir']
+
     config = context['config']
     logger = context['logger']
     threads = context.get('threads', 1)
@@ -173,9 +169,7 @@ def run_phabox2_prediction(**context):
 
 def run_gene_annotation(**context):
     """基因功能注释，使用prodigal-gv预测蛋白和基因序列"""
-    import os
-    import subprocess
-    viruslib_dir = context['viruslib_dir']
+
     logger = context['logger']
     step_dir = context['paths']['gene_annotation']
     os.makedirs(step_dir, exist_ok=True)
@@ -197,10 +191,8 @@ def run_taxonomy_annotation(**context):
     """
     病毒物种注释，使用geNomad进行end-to-end注释
     """
-    import os
-    import subprocess
 
-    viruslib_dir = context['viruslib_dir']
+
     config = context['config']
     logger = context['logger']
     threads = context.get('threads', 1)
@@ -229,9 +221,7 @@ def run_taxonomy_annotation(**context):
 
 def run_cdhit_dedup(**context):
     """基因序列去冗余，使用cd-hit-est"""
-    import os
-    import subprocess
-    viruslib_dir = context['viruslib_dir']
+
     config = context['config']
     logger = context['logger']
     threads = context.get('threads', 1)
@@ -250,9 +240,7 @@ def run_cdhit_dedup(**context):
 
 
 def run_eggnog(**context):
-    import os
-    import subprocess
-    import sys
+    
     step_dir = context['paths']['eggnog']
     os.makedirs(step_dir, exist_ok=True)
     config = context['config']
