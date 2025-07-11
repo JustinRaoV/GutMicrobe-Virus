@@ -4,10 +4,9 @@
 本模块包含序列比对和结果整合功能。
 """
 
-import subprocess
-import sys
 import os
 from core.config_manager import get_config
+from utils.common import create_simple_logger, ensure_directory_clean, run_command
 
 
 def run_blastn(**context):
@@ -15,7 +14,8 @@ def run_blastn(**context):
     
     对过滤后的 contigs 进行 BLASTN 比对，搜索病毒数据库。
     """
-    print("[blastn] Running blastn...")
+    logger = create_simple_logger("virus_analysis")
+    logger.info("Running blastn...")
     
     config = get_config()
     db_root = context['db']
@@ -27,12 +27,9 @@ def run_blastn(**context):
     blastn_dir = os.path.join(context['paths']["blastn"], context['sample'])
     
     # 清理并创建目录
-    if os.path.exists(blastn_dir):
-        try:
-            subprocess.call([f"rm -rf {blastn_dir}"], shell=True)
-        except Exception as e:
-            print(f"[blastn] Warning: Failed to remove {blastn_dir}: {e}")
-    subprocess.call([f"mkdir -p {blastn_dir}"], shell=True)
+    if not ensure_directory_clean(blastn_dir, logger):
+        logger.error(f"Failed to prepare directory: {blastn_dir}")
+        return False
     
     # 对多个数据库进行比对，使用主环境
     for dbname in ["crass", "gpd", "gvd", "mgv", "ncbi"]:
@@ -44,10 +41,14 @@ def run_blastn(**context):
             f'-outfmt "6 qseqid sseqid pident evalue qcovs nident qlen slen length mismatch positive ppos gapopen gaps qstart qend sstart send bitscore qcovhsp qcovus qseq sstrand frames " '
             f'-out {out_path}'
         )
-        print(f"[blastn] Running: {cmd}")
-        ret = subprocess.call([cmd], shell=True)
+        
+        ret = run_command(cmd, logger, f"blastn_{dbname}")
         if ret != 0:
-            sys.exit("ERROR: blastn error")
+            logger.error(f"blastn {dbname} failed")
+            return False
+    
+    logger.info("blastn analysis completed successfully")
+    return True
 
 
 def run_combination(**context):
@@ -57,20 +58,22 @@ def run_combination(**context):
     支持的工具：VirSorter、DeepVirFinder、VIBRANT、BLASTN、CheckV预过滤
     用户可以通过配置选择使用哪些工具的结果。
     """
-    print("[combination] Combining all virus detection results")
+    logger = create_simple_logger("virus_analysis")
+    logger.info("Combining all virus detection results")
     
     final_dir = os.path.join(context['paths']["combination"], context['sample'])
     
     # 清理并创建目录
-    if os.path.exists(final_dir):
-        try:
-            subprocess.call([f"rm -rf {final_dir}"], shell=True)
-        except Exception as e:
-            print(f"[combination] Warning: Failed to remove {final_dir}: {e}")
-    subprocess.call([f"mkdir -p {final_dir}"], shell=True)
+    if not ensure_directory_clean(final_dir, logger):
+        logger.error(f"Failed to prepare directory: {final_dir}")
+        return False
     
     # 合并结果
     from utils.tools import filter_vircontig_enhanced
     ret = filter_vircontig_enhanced(context['output'], context['sample'], context['paths'])
     if ret != 0:
-        sys.exit("ERROR: combine error") 
+        logger.error("combine error")
+        return False
+    
+    logger.info("Combination completed successfully")
+    return True 

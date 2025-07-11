@@ -149,8 +149,11 @@ def run_dvf(**context):
     if ret != 0:
         sys.exit(f"ERROR: DeepVirFinder failed: {ret}")
     
-    # 过滤结果：评分 > 0.9 且 p 值 < 0.01
-    cmd = f"awk 'NR>1 && $3 > 0.9 && $4 < 0.01 {{print $1}}' {dvf_dir}/*_dvfpred.txt > {dvf_dir}/virus_dvf.list"
+    # 过滤结果：使用配置文件中的阈值
+    config = get_config()
+    dvf_score_threshold = config['parameters']['dvf_score_threshold']
+    dvf_pvalue_threshold = config['parameters']['dvf_pvalue_threshold']
+    cmd = f"awk 'NR>1 && $3 > {dvf_score_threshold} && $4 < {dvf_pvalue_threshold} {{print $1}}' {dvf_dir}/*_dvfpred.txt > {dvf_dir}/virus_dvf.list"
     print(f"[dvf] Filtering results...")
     ret = subprocess.call(cmd, shell=True)
     if ret != 0:

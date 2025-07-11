@@ -1,13 +1,19 @@
 import sys
 from pathlib import Path
+from core.config_manager import get_config
 
 
 def generate_submit_script(script_dir):
+    # 从配置文件获取参数
+    config = get_config()
+    cpu_cores = config['parameters']['submit_cpu_cores']
+    memory = config['parameters']['submit_memory']
+    
     # 收集所有.sh文件的绝对路径
     commands = []
     for sh_file in script_dir.glob("*.sh"):
         abs_path = sh_file.resolve()
-        commands.append(f"sbatch -n 32 --mem=200G {abs_path}")
+        commands.append(f"sbatch -n {cpu_cores} --mem={memory} {abs_path}")
 
     # 写入submit.txt
     with open("submit.txt", "w") as f:
