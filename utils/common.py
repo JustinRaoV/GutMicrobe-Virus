@@ -14,42 +14,42 @@ from typing import Optional
 def create_simple_logger(name: str, level: str = "INFO") -> logging.Logger:
     """
     创建简单的日志记录器
-    
+
     Args:
         name: 日志记录器名称
         level: 日志级别
-    
+
     Returns:
         logging.Logger: 日志记录器
     """
     logger = logging.getLogger(name)
     logger.setLevel(getattr(logging, level.upper()))
-    
+
     # 如果已经有处理器，直接返回
     if logger.handlers:
         return logger
-    
+
     # 创建控制台处理器
     console_handler = logging.StreamHandler()
     console_handler.setLevel(getattr(logging, level.upper()))
-    
+
     # 设置格式
     formatter = logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
     console_handler.setFormatter(formatter)
-    
+
     # 添加处理器
     logger.addHandler(console_handler)
-    
+
     return logger
 
 
 def log_error(logger, message: str, error: Optional[Exception] = None) -> None:
     """
     统一的错误日志记录
-    
+
     Args:
         logger: 日志记录器
         message: 错误消息
@@ -64,11 +64,11 @@ def log_error(logger, message: str, error: Optional[Exception] = None) -> None:
 def prepare_directory(directory: str, logger=None) -> bool:
     """
     准备目录（清理并创建）
-    
+
     Args:
         directory: 目录路径
         logger: 日志记录器（可选）
-    
+
     Returns:
         bool: 是否成功
     """
@@ -82,11 +82,11 @@ def prepare_directory(directory: str, logger=None) -> bool:
 def safe_remove_directory(directory: str, logger=None) -> bool:
     """
     安全删除目录
-    
+
     Args:
         directory: 要删除的目录路径
         logger: 日志记录器（可选）
-    
+
     Returns:
         bool: 是否成功删除
     """
@@ -109,11 +109,11 @@ def safe_remove_directory(directory: str, logger=None) -> bool:
 def safe_create_directory(directory: str, logger=None) -> bool:
     """
     安全创建目录
-    
+
     Args:
         directory: 要创建的目录路径
         logger: 日志记录器（可选）
-    
+
     Returns:
         bool: 是否成功创建
     """
@@ -131,18 +131,18 @@ def safe_create_directory(directory: str, logger=None) -> bool:
         return False
 
 
-def run_command(cmd: str, logger=None, step_name: str = "command", 
+def run_command(cmd: str, logger=None, step_name: str = "command",
                 check_return_code: bool = True, shell: bool = True) -> int:
     """
     运行命令的统一接口
-    
+
     Args:
         cmd: 要执行的命令
         logger: 日志记录器（可选）
         step_name: 步骤名称，用于日志输出
         check_return_code: 是否检查返回码
         shell: 是否使用shell执行
-    
+
     Returns:
         int: 命令的返回码
     """
@@ -150,13 +150,13 @@ def run_command(cmd: str, logger=None, step_name: str = "command",
         logger.info(f"[{step_name}] Running: {cmd}")
     else:
         print(f"[{step_name}] Running: {cmd}")
-    
+
     try:
         if shell:
             ret = subprocess.call(cmd, shell=True)
         else:
             ret = subprocess.call(cmd.split(), shell=False)
-        
+
         if ret != 0 and check_return_code:
             error_msg = f"ERROR: {step_name} failed with return code {ret}"
             if logger:
@@ -164,14 +164,14 @@ def run_command(cmd: str, logger=None, step_name: str = "command",
             else:
                 print(error_msg)
             return ret
-        
+
         if logger:
             logger.info(f"[{step_name}] Completed successfully")
         else:
             print(f"[{step_name}] Completed successfully")
-        
+
         return ret
-        
+
     except Exception as e:
         error_msg = f"ERROR: {step_name} failed with exception: {e}"
         if logger:
@@ -181,17 +181,17 @@ def run_command(cmd: str, logger=None, step_name: str = "command",
         return -1
 
 
-def run_command_with_output(cmd: str, logger=None, step_name: str = "command", 
-                           shell: bool = True) -> tuple:
+def run_command_with_output(cmd: str, logger=None, step_name: str = "command",
+                            shell: bool = True) -> tuple:
     """
     运行命令并返回输出
-    
+
     Args:
         cmd: 要执行的命令
         logger: 日志记录器（可选）
         step_name: 步骤名称，用于日志输出
         shell: 是否使用shell执行
-    
+
     Returns:
         tuple: (返回码, 标准输出, 标准错误)
     """
@@ -199,13 +199,15 @@ def run_command_with_output(cmd: str, logger=None, step_name: str = "command",
         logger.info(f"[{step_name}] Running: {cmd}")
     else:
         print(f"[{step_name}] Running: {cmd}")
-    
+
     try:
         if shell:
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            result = subprocess.run(
+                cmd, shell=True, capture_output=True, text=True)
         else:
-            result = subprocess.run(cmd.split(), shell=False, capture_output=True, text=True)
-        
+            result = subprocess.run(
+                cmd.split(), shell=False, capture_output=True, text=True)
+
         if result.returncode != 0:
             error_msg = f"ERROR: {step_name} failed with return code {result.returncode}"
             if logger:
@@ -216,9 +218,9 @@ def run_command_with_output(cmd: str, logger=None, step_name: str = "command",
                 print(error_msg)
                 if result.stderr:
                     print(f"Stderr: {result.stderr}")
-        
+
         return result.returncode, result.stdout, result.stderr
-        
+
     except Exception as e:
         error_msg = f"ERROR: {step_name} failed with exception: {e}"
         if logger:
@@ -231,11 +233,11 @@ def run_command_with_output(cmd: str, logger=None, step_name: str = "command",
 def safe_remove_file(file_path: str, logger=None) -> bool:
     """
     安全删除文件
-    
+
     Args:
         file_path: 要删除的文件路径
         logger: 日志记录器（可选）
-    
+
     Returns:
         bool: 是否成功删除
     """
@@ -258,14 +260,14 @@ def safe_remove_file(file_path: str, logger=None) -> bool:
 def ensure_directory_clean(directory: str, logger=None) -> bool:
     """
     确保目录干净（删除后重新创建）
-    
+
     Args:
         directory: 目录路径
         logger: 日志记录器（可选）
-    
+
     Returns:
         bool: 是否成功
     """
     if not safe_remove_directory(directory, logger):
         return False
-    return safe_create_directory(directory, logger) 
+    return safe_create_directory(directory, logger)

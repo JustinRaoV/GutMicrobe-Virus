@@ -3,7 +3,6 @@ import os
 import sys
 from core.logger import create_logger
 from core.config_manager import get_config
-from core.executor import get_executor
 from utils.paths import get_paths
 from modules.viruslib import (
     run_merge_contigs,
@@ -12,32 +11,49 @@ from modules.viruslib import (
     run_gene_annotation,
     run_cdhit_dedup,
     run_taxonomy_annotation,
-    run_eggnog
+    run_eggnog,
 )
 
 
 def parameter_input():
-    parser = argparse.ArgumentParser(description='GutMicrobe VirusLib Pipeline')
-    parser.add_argument('--config', help='Path to config file', default="config.ini")
-    parser.add_argument('--log-level', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'], default='INFO', help='Log level')
-    parser.add_argument('--validate-config', action='store_true', help='Validate configuration and exit')
-    parser.add_argument('-t', '--threads', type=int, default=1, help='Number of threads')
-    parser.add_argument('-o', '--output', help='Output directory (default: config.ini [paths] viruslib_dir)')
+    parser = argparse.ArgumentParser(description="GutMicrobe VirusLib Pipeline")
+    parser.add_argument("--config", help="Path to config file", default="config.ini")
+    parser.add_argument(
+        "--log-level",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+        default="INFO",
+        help="Log level",
+    )
+    parser.add_argument(
+        "--validate-config", action="store_true", help="Validate configuration and exit"
+    )
+    parser.add_argument(
+        "-t", "--threads", type=int, default=1, help="Number of threads"
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        help="Output directory (default: config.ini [paths] viruslib_dir)",
+    )
+    parser.add_argument(
+        "--db",
+        help="Database directory",
+    )
     return parser.parse_args()
 
 
 def setup_logging(output, sample, log_level="INFO"):
     """设置日志系统"""
     logger, error_handler = create_logger(output, sample, log_level)
-    
+
     # 兼容旧的进度跟踪系统
     log_path = os.path.join(output, "logs", f"{sample}log.txt")
-    
+
     def update_log_step(step):
         with open(log_path, "w") as f:
             f.write(f"{step}\n")
         return step
-    
+
     if os.path.exists(log_path):
         try:
             with open(log_path, "r") as f:
@@ -46,7 +62,7 @@ def setup_logging(output, sample, log_level="INFO"):
             current_step = update_log_step(0)
     else:
         current_step = update_log_step(0)
-    
+
     return update_log_step, current_step, logger, error_handler
 
 
@@ -69,23 +85,24 @@ def build_context(args, config):
     steps_name = [name for name, _ in steps]
     paths = get_paths(args.output, steps_name)
     return {
-        'paths': paths,
-        'config': config,
-        'threads': args.threads,
-        'busco_dir': os.path.join(config['paths']['result_dir'], '13.busco_filter'),
-        'viruslib_dir': args.output
+        "paths": paths,
+        "config": config,
+        "threads": args.threads,
+        "busco_dir": os.path.join(config["paths"]["result_dir"], "13.busco_filter"),
+        "viruslib_dir": args.output,
+        "db": args.db,
     }
 
 
 def main():
     args = parameter_input()
     config = get_config(args.config)
-    
+
     # 配置验证
     if args.validate_config:
         try:
             # 检查所有必须的软件路径
-            for section in ['software', 'parameters']:
+            for section in ["software", "parameters"]:
                 for key in config[section]:
                     value = config[section][key]
                     if not value:
@@ -95,20 +112,17 @@ def main():
         except Exception as e:
             print(f"配置验证失败: {e}")
             sys.exit(1)
-    
+
     context = build_context(args, config)
     update_log, current_step, logger, error_handler = setup_logging(
-        context['viruslib_dir'], "viruslib", args.log_level
+        context["viruslib_dir"], "viruslib", args.log_level
     )
-    
-    # 初始化执行器
-    executor = get_executor(logger, error_handler)
-    
+
     # 记录启动信息
     logger.info("GutMicrobe VirusLib Pipeline 启动")
     logger.info(f"输出目录: {context['viruslib_dir']}")
     logger.info(f"线程数: {context['threads']}")
-    
+
     steps = register_steps()
     logger.info(f"总步骤数: {len(steps)}")
 
@@ -117,19 +131,17 @@ def main():
         if current_step < idx:
             try:
                 logger.step_start(step_name, idx, len(steps))
-                
+
                 # 将执行器添加到context中
                 step_context = context.copy()
-                step_context['executor'] = executor
-                step_context['logger'] = logger
-                step_context['error_handler'] = error_handler
-                
+                step_context["logger"] = logger
+
                 # 执行步骤
                 func(**step_context)
-                
+
                 logger.step_complete(step_name, idx)
                 current_step = update_log(idx)
-                
+
             except Exception as e:
                 logger.step_failed(step_name, idx, str(e))
                 raise
@@ -138,5 +150,5 @@ def main():
     logger.info("VirusLib Pipeline 成功完成")
 
 
-if __name__ == '__main__':
-    main() 
+if __name__ == "__main__":
+    main()

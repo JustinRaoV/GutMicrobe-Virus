@@ -6,8 +6,9 @@
 
 import configparser
 
+
 def get_config(config_file="config.ini"):
     config = configparser.ConfigParser()
     with open(config_file, encoding="utf-8") as f:
         config.read_file(f)
-    return config 
+    return config
