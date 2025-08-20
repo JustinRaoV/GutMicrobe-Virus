@@ -1,8 +1,8 @@
 import argparse
 import os
 import sys
-from core.logger import create_logger
-from core.config_manager import get_config
+from utils.logging import setup_logger
+from core.config import Config
 from utils.paths import get_paths
 from modules.viruslib import (
     run_merge_contigs,
@@ -44,10 +44,11 @@ def parameter_input():
 
 def setup_logging(output, sample, log_level="INFO"):
     """设置日志系统"""
-    logger, error_handler = create_logger(output, sample, log_level)
+    logger = setup_logger(f"{sample}_pipeline", output, log_level)
 
     # 兼容旧的进度跟踪系统
     log_path = os.path.join(output, "logs", f"{sample}log.txt")
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
 
     def update_log_step(step):
         with open(log_path, "w") as f:
@@ -63,7 +64,7 @@ def setup_logging(output, sample, log_level="INFO"):
     else:
         current_step = update_log_step(0)
 
-    return update_log_step, current_step, logger, error_handler
+    return update_log_step, current_step, logger
 
 
 def register_steps():
@@ -96,15 +97,23 @@ def build_context(args, config):
 
 def main():
     args = parameter_input()
-    config = get_config(args.config)
+    config = Config(args.config)
+
+    # 设置默认输出目录
+    if not args.output:
+        args.output = getattr(config.paths, 'viruslib_dir', 'viruslib')
+    
+    # 设置默认数据库目录
+    if not args.db:
+        args.db = getattr(config, 'db', None)
 
     # 配置验证
     if args.validate_config:
         try:
             # 检查所有必须的软件路径
             for section in ["software", "parameters"]:
-                for key in config[section]:
-                    value = config[section][key]
+                section_config = getattr(config, section, {})
+                for key, value in section_config.items():
                     if not value:
                         raise ValueError(f"配置项 {section}.{key} 为空")
             print("配置验证通过!")
@@ -114,7 +123,7 @@ def main():
             sys.exit(1)
 
     context = build_context(args, config)
-    update_log, current_step, logger, error_handler = setup_logging(
+    update_log, current_step, logger = setup_logging(
         context["viruslib_dir"], "viruslib", args.log_level
     )
 
@@ -130,7 +139,7 @@ def main():
     for idx, (step_name, func) in enumerate(steps, 1):
         if current_step < idx:
             try:
-                logger.step_start(step_name, idx, len(steps))
+                logger.info(f"开始执行步骤 {idx}/{len(steps)}: {step_name}")
 
                 # 将执行器添加到context中
                 step_context = context.copy()
@@ -139,11 +148,11 @@ def main():
                 # 执行步骤
                 func(**step_context)
 
-                logger.step_complete(step_name, idx)
+                logger.info(f"步骤 {idx} 完成: {step_name}")
                 current_step = update_log(idx)
 
             except Exception as e:
-                logger.step_failed(step_name, idx, str(e))
+                logger.error(f"步骤 {idx} 失败: {step_name} - {str(e)}")
                 raise
 
     logger.info("所有步骤完成")

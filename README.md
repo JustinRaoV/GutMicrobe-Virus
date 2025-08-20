@@ -55,6 +55,21 @@ python run_downstream.py sample_1.fq.gz sample_2.fq.gz --upstream-result result/
 python viruslib_pipeline.py -t 32 -o libresult/ --db /path/to/db
 ```
 
+### 项目清理
+
+清理临时文件和无用目录：
+
+```bash
+# 查看将要清理的内容（试运行）
+python cleanup.py --dry-run
+
+# 执行实际清理
+python cleanup.py
+
+# 清理指定目录
+python cleanup.py --project-dir /path/to/project
+```
+
 ## 🗂 批量任务与自动提交
 
 ### 一键批量脚本生成
@@ -111,10 +126,39 @@ megahit_params = --k-list 21,29,39,59,79,99,119
 ...
 
 [combination]
+# 病毒识别工具选择配置 - 节省计算资源
+use_blastn = 1        # 1=执行BLASTN，0=跳过执行
+use_virsorter = 0     # 1=执行VirSorter，0=跳过执行
+use_dvf = 1           # 1=执行DeepVirFinder，0=跳过执行
+use_vibrant = 0       # 1=执行VIBRANT，0=跳过执行
+use_checkv_prefilter = 1  # 1=执行CheckV预过滤，0=跳过执行
+min_tools_hit = 2     # 至少需要多少个工具检测到才认为是病毒
+```
+
+### 🚀 智能工具选择功能
+
+**节省计算资源的关键特性：**
+- 通过 `[combination]` 配置段中的 `use_*` 开关控制是否执行特定的病毒检测工具
+- 设置为 `0` 的工具将完全跳过执行，大幅节省计算时间和资源
+- 系统会自动创建占位符文件，确保后续分析步骤正常运行
+- 支持灵活的工具组合，可根据数据类型和分析需求定制流程
+
+**使用示例：**
+```ini
+# 快速分析模式：只使用BLASTN和CheckV预过滤
+use_blastn = 1
+use_virsorter = 0
+use_dvf = 0
+use_vibrant = 0
+use_checkv_prefilter = 1
+min_tools_hit = 1
+
+# 高精度模式：使用所有工具
 use_blastn = 1
 use_virsorter = 1
 use_dvf = 1
 use_vibrant = 1
+use_checkv_prefilter = 1
 min_tools_hit = 2
 ```
 

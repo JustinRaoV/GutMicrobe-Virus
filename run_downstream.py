@@ -8,10 +8,10 @@
 import argparse
 import os
 import sys
-from utils.tools import *
+from utils.tools import get_sample_name
 from modules.abundance_analysis import run_abundance_analysis
-from core.config_manager import get_config
-from utils.common import create_simple_logger
+from core.config import Config
+from utils.logging import setup_logger
 
 
 def parameter_input():
@@ -113,15 +113,15 @@ def build_context(args):
 
 def main():
     args = parameter_input()
-    config = get_config(args.config)
+    config = Config(args.config)
 
     # 配置验证
     if args.validate_config:
         try:
             # 检查coverm配置
-            if "coverm" not in config["software"]:
+            if "coverm" not in config.software:
                 raise ValueError("配置文件中缺少coverm软件路径")
-            if "coverm_params" not in config["parameters"]:
+            if "coverm_params" not in config.parameters:
                 raise ValueError("配置文件中缺少coverm参数配置")
 
             # 检查输入文件是否存在
@@ -145,7 +145,8 @@ def main():
             sys.exit(1)
 
     context = build_context(args)
-    logger = create_simple_logger("downstream", args.log_level)
+    context["config"] = config
+    logger = setup_logger("downstream", args.output, args.log_level)
 
     # 记录启动信息
     logger.info("GutMicrobe Virus Downstream Analysis Pipeline 启动")

@@ -1,11 +1,16 @@
 import argparse
 import os
 import sys
-from utils.tools import *
-from modules import *
+from utils.tools import get_sample_name, remove_inter_result
 from utils.paths import get_paths
-from core.logger import create_logger
-from core.config_manager import get_config
+from utils.logging import setup_logger, setup_module_logger
+from core.config import Config
+from modules import (
+    run_fastp, run_host_removal, run_assembly, run_vsearch,
+    run_checkv_prefilter, run_virsorter, run_dvf, run_vibrant,
+    run_blastn, run_combination, run_checkv, high_quality_output,
+    run_busco_filter
+)
 
 
 def parameter_input():
@@ -54,10 +59,11 @@ def parameter_input():
 
 def setup_logging(output, sample, keep_log, log_level="INFO"):
     """设置日志系统"""
-    logger, error_handler = create_logger(output, sample, log_level)
+    logger = setup_logger(f"{sample}_pipeline", output, log_level)
 
     # 兼容旧的进度跟踪系统
     log_path = os.path.join(output, "logs", f"{sample}log.txt")
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
 
     def update_log_step(step):
         with open(log_path, "w") as f:
@@ -73,26 +79,99 @@ def setup_logging(output, sample, keep_log, log_level="INFO"):
     else:
         current_step = update_log_step(0)
 
-    return update_log_step, current_step, logger, error_handler
+    return update_log_step, current_step, logger
 
 
-def register_steps():
-    """注册所有处理步骤，返回(步骤名, 函数)列表"""
-    return [
-        ("fastp", run_fastp),
-        ("host_removal", run_host_removal),
-        ("assembly", run_assembly),
-        ("vsearch", run_vsearch),
-        ("checkv_prefilter", run_checkv_prefilter),
-        ("virsorter", run_virsorter),
-        ("dvf", run_dvf),
-        ("vibrant", run_vibrant),
-        ("blastn", run_blastn),
-        ("combination", run_combination),
-        ("checkv", run_checkv),
-        ("high_quality", high_quality_output),
-        ("busco_filter", run_busco_filter),
+def create_placeholder_step(step_name, paths_key):
+    """创建占位符步骤函数，为跳过的步骤创建必要的目录结构"""
+    def placeholder_func(**context):
+        logger = setup_module_logger(f"placeholder.{step_name}")
+        logger.info(f"跳过 {step_name} 步骤 (已禁用)，创建占位符目录")
+        
+        # 创建基本目录结构
+        step_dir = os.path.join(context["paths"][paths_key], context["sample"])
+        os.makedirs(step_dir, exist_ok=True)
+        
+        # 根据不同步骤创建必要的空文件
+        if step_name == "virsorter":
+            # VirSorter需要final-viral-score.tsv文件
+            placeholder_file = os.path.join(step_dir, "final-viral-score.tsv")
+            with open(placeholder_file, 'w') as f:
+                f.write("# VirSorter disabled - placeholder file\n")
+        elif step_name == "dvf":
+            # DeepVirFinder需要virus_dvf.list文件
+            placeholder_file = os.path.join(step_dir, "virus_dvf.list")
+            with open(placeholder_file, 'w') as f:
+                f.write("")  # 空文件
+        elif step_name == "vibrant":
+            # VIBRANT需要特定的目录结构和文件
+            vibrant_subdir = os.path.join(step_dir, "VIBRANT_filtered_contigs", "VIBRANT_phages_filtered_contigs")
+            os.makedirs(vibrant_subdir, exist_ok=True)
+            placeholder_file = os.path.join(vibrant_subdir, "filtered_contigs.phages_combined.txt")
+            with open(placeholder_file, 'w') as f:
+                f.write("")  # 空文件
+        elif step_name == "blastn":
+            # BLASTN需要多个输出文件
+            blastn_files = ["crass.out", "gpd.out", "gvd.out", "mgv.out", "ncbi.out"]
+            for fname in blastn_files:
+                placeholder_file = os.path.join(step_dir, fname)
+                with open(placeholder_file, 'w') as f:
+                    f.write("")  # 空文件
+        elif step_name == "checkv_prefilter":
+            # CheckV预过滤需要viral_contigs.list文件
+            placeholder_file = os.path.join(step_dir, "viral_contigs.list")
+            with open(placeholder_file, 'w') as f:
+                f.write("")  # 空文件
+        
+        logger.info(f"{step_name} 占位符创建完成")
+    
+    return placeholder_func
+
+
+def register_steps(config):
+    """注册所有处理步骤，返回(步骤名, 函数, 是否启用)列表"""
+    # 基础步骤（始终执行）
+    steps = [
+        ("fastp", run_fastp, True),
+        ("host_removal", run_host_removal, True),
+        ("assembly", run_assembly, True),
+        ("vsearch", run_vsearch, True),
     ]
+    
+    # CheckV预过滤步骤（可选）
+    use_checkv_prefilter = config.get_bool("combination", "use_checkv_prefilter", True)
+    if use_checkv_prefilter:
+        steps.append(("checkv_prefilter", run_checkv_prefilter, True))
+    else:
+        steps.append(("checkv_prefilter", create_placeholder_step("checkv_prefilter", "checkv_prefilter"), True))
+    
+    # 可选的病毒检测步骤（根据配置决定是否执行）
+    virus_detection_steps = [
+        ("virsorter", run_virsorter, "virsorter", config.get_bool("combination", "use_virsorter", True)),
+        ("dvf", run_dvf, "dvf", config.get_bool("combination", "use_dvf", True)),
+        ("vibrant", run_vibrant, "vibrant", config.get_bool("combination", "use_vibrant", True)),
+        ("blastn", run_blastn, "blastn", config.get_bool("combination", "use_blastn", True)),
+    ]
+    
+    for step_name, real_func, paths_key, enabled in virus_detection_steps:
+        if enabled:
+            steps.append((step_name, real_func, True))
+        else:
+            # 创建占位符函数以确保目录结构存在
+            steps.append((step_name, create_placeholder_step(step_name, paths_key), True))
+    
+    # 后续处理步骤（始终执行）
+    final_steps = [
+        ("combination", run_combination, True),
+        ("checkv", run_checkv, True),
+        ("high_quality", high_quality_output, True),
+        ("busco_filter", run_busco_filter, True),
+    ]
+    
+    # 合并所有步骤
+    steps.extend(final_steps)
+    
+    return steps
 
 
 def build_context(args):
@@ -134,15 +213,15 @@ def build_context(args):
 
 def main():
     args = parameter_input()
-    config = get_config(args.config)
+    config = Config(args.config)
 
     # 配置验证
     if args.validate_config:
         try:
             # 检查所有必须的软件路径
             for section in ["software", "parameters", "environment", "database"]:
-                for key in config[section]:
-                    value = config[section][key]
+                section_config = getattr(config, section, {})
+                for key, value in section_config.items():
                     if not value:
                         raise ValueError(f"配置项 {section}.{key} 为空")
             print("配置验证通过!")
@@ -152,7 +231,8 @@ def main():
             sys.exit(1)
 
     context = build_context(args)
-    update_log, current_step, logger, error_handler = setup_logging(
+    context["config"] = config
+    update_log, current_step, logger = setup_logging(
         context["output"], context["sample"], args.keep_log, args.log_level
     )
 
@@ -164,26 +244,34 @@ def main():
     logger.info(f"线程数: {args.threads}")
     logger.info(f"数据库目录: {args.db}")
 
-    steps = register_steps()
+    # 获取步骤列表
+    steps = register_steps(config)
+    
+    # 记录病毒检测工具配置状态
+    tool_status = []
+    for tool in ['blastn', 'virsorter', 'dvf', 'vibrant', 'checkv_prefilter']:
+        enabled = config.get_bool("combination", f"use_{tool}", True)
+        status = "启用" if enabled else "禁用(占位符)"
+        tool_status.append(f"{tool}({status})")
+    logger.info(f"病毒检测工具状态: {', '.join(tool_status)}")
     logger.info(f"总步骤数: {len(steps)}")
 
     # 步骤执行主循环
-    for idx, (step_name, func) in enumerate(steps, 1):
+    for idx, (step_name, func, enabled) in enumerate(steps, 1):
         if current_step < idx:
             try:
-                logger.step_start(step_name, idx, len(steps))
+                logger.info(f"开始执行步骤 {idx}/{len(steps)}: {step_name}")
                 step_context = context.copy()
                 step_context["logger"] = logger
-                step_context["error_handler"] = error_handler
 
                 # 执行步骤
                 func(**step_context)
 
-                logger.step_complete(step_name, idx)
+                logger.info(f"步骤 {idx} 完成: {step_name}")
                 current_step = update_log(idx)
 
             except Exception as e:
-                logger.step_failed(step_name, idx, str(e))
+                logger.error(f"步骤 {idx} 失败: {step_name} - {str(e)}")
                 raise
 
     logger.info("所有步骤完成")

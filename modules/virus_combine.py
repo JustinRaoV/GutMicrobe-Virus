@@ -5,8 +5,8 @@
 """
 
 import os
-from core.config_manager import get_config
-from utils.common import create_simple_logger
+from core.config import get_config_manager
+from utils.logging import setup_module_logger
 from utils.tools import make_clean_dir
 import pandas as pd
 
@@ -17,23 +17,21 @@ def run_combination(**context):
     支持的工具：VirSorter、DeepVirFinder、VIBRANT、BLASTN、CheckV预过滤
     用户可以通过配置选择使用哪些工具的结果。
     """
-    logger = create_simple_logger("combination")
-    logger.info("[combination] Combining all virus detection results")
+    logger = setup_module_logger("virus_combine.combination")
+    logger.info("开始合并所有病毒检测结果")
 
     comb_dir = os.path.join(context["paths"]["combination"], context["sample"])
     make_clean_dir(comb_dir)
 
     # 读取配置
-    config = get_config()
+    config = get_config_manager()
 
     # 获取工具选择配置
-    use_blastn = config.getboolean("combination", "use_blastn", fallback=True)
-    use_virsorter = config.getboolean("combination", "use_virsorter", fallback=True)
-    use_dvf = config.getboolean("combination", "use_dvf", fallback=True)
-    use_vibrant = config.getboolean("combination", "use_vibrant", fallback=True)
-    use_checkv_prefilter = config.getboolean(
-        "combination", "use_checkv_prefilter", fallback=True
-    )
+    use_blastn = config.get_bool("combination", "use_blastn", True)
+    use_virsorter = config.get_bool("combination", "use_virsorter", True)
+    use_dvf = config.get_bool("combination", "use_dvf", True)
+    use_vibrant = config.get_bool("combination", "use_vibrant", True)
+    use_checkv_prefilter = config.get_bool("combination", "use_checkv_prefilter", True)
 
     logger.info(
         f"[combination] Tool selection: BLASTN={use_blastn}, VirSorter={use_virsorter}, DeepVirFinder={use_dvf}, VIBRANT={use_vibrant}, CheckV预过滤={use_checkv_prefilter}"
@@ -135,7 +133,7 @@ def run_combination(**context):
         f"[combination] Found viral contigs: BLASTN={len(blastn_contigs)}, VirSorter={len(virsorter_contigs)}, DeepVirFinder={len(dvf_contigs)}, VIBRANT={len(vibrant_contigs)}, CheckV预过滤={len(checkv_viral_contigs)}, 总计={len(all_viral_contigs)}"
     )
 
-    min_tools_hit = int(config["combination"].get("min_tools_hit", 1))
+    min_tools_hit = config.get_int("combination", "min_tools_hit", 1)
     # 统计每个contig被多少工具命中
     contig_tool_hits = {}
     for contig in all_viral_contigs:
@@ -236,10 +234,10 @@ def run_combination(**context):
 
 
 def _filter_blastn_file(filepath, dbname, blastn):
-    config = get_config()
-    pident = float(config["parameters"].get("blastn_pident", 50))
-    evalue = float(config["parameters"].get("blastn_evalue", 1e-10))
-    qcovs = float(config["parameters"].get("blastn_qcovs", 80))
+    config = get_config_manager()
+    pident = config.get_float("parameters", "blastn_pident", 50)
+    evalue = config.get_float("parameters", "blastn_evalue", 1e-10)
+    qcovs = config.get_float("parameters", "blastn_qcovs", 80)
     df = pd.read_table(filepath, header=None)
     df.columns = [
         "qseqid",

@@ -7,9 +7,10 @@
 import os
 import subprocess
 import pandas as pd
-from core.config_manager import get_config
-from utils.common import create_simple_logger
+from core.config import get_config_manager
+from utils.logging import setup_module_logger
 from utils.tools import make_clean_dir
+from utils.environment import EnvironmentManager
 
 
 def run_checkv(**context):
@@ -17,30 +18,34 @@ def run_checkv(**context):
 
     对候选病毒序列进行质量评估，计算完整性和污染度。
     """
-    logger = create_simple_logger("virus_quality")
-    logger.info("Running checkv...")
+    logger = setup_module_logger("virus_quality.checkv")
+    logger.info("开始执行CheckV质量评估")
 
-    config = get_config()
+    config = get_config_manager()
+    env_manager = EnvironmentManager(config)
     checkv_dir = os.path.join(context["paths"]["checkv"], context["sample"])
     db_root = context["db"]
-    # 优先用config.ini里的checkv_database，否则用--db拼接默认子路径
-    if config.has_section("database") and config["database"].get("checkv_database"):
-        checkv_db = config["database"]["checkv_database"]
-    else:
-        checkv_db = os.path.join(db_root, "checkvdb/checkv-db-v1.4")
+    # 获取CheckV数据库路径
+    checkv_db = config.get_database_path("checkv_database", db_root)
 
     # 清理并创建目录
     make_clean_dir(checkv_dir)
 
-    # 使用主环境运行CheckV
-    cmd = (
-        f"{config['environment']['main_conda_activate']} && "
-        f"checkv end_to_end {context['paths']['combination']}/{context['sample']}/contigs.fa {checkv_dir} "
-        f"-d {checkv_db} -t {context['threads']}"
-    )
+    try:
+        # 构建CheckV命令
+        checkv_path = config.get("software", "checkv")
+        combination_path = f"{context['paths']['combination']}/{context['sample']}/contigs.fa"
+        
+        checkv_cmd = (
+            f"{checkv_path} end_to_end {combination_path} {checkv_dir} "
+            f"-d {checkv_db} -t {context['threads']}"
+        )
 
-    subprocess.run(cmd, shell=True, check=True)
-    logger.info("checkv analysis completed successfully")
+        env_manager.run_command(checkv_cmd, tool_name="main")
+        logger.info("CheckV质量评估完成")
+    except Exception as e:
+        logger.error(f"CheckV质量评估失败: {str(e)}")
+        raise
 
 
 def high_quality_output(**context):
@@ -48,11 +53,10 @@ def high_quality_output(**context):
 
     根据 CheckV 质量评估结果，输出高质量的病毒序列。
     """
+    logger = setup_module_logger("virus_quality.high_quality")
+    logger.info("开始生成高质量病毒contigs")
 
-    logger = create_simple_logger("virus_quality")
-    logger.info("Generating high-quality viral contigs...")
-
-    config = get_config()
+    config = get_config_manager()
     high_quality_dir = os.path.join(context["paths"]["high_quality"], context["sample"])
     make_clean_dir(high_quality_dir)
 

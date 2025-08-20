@@ -64,12 +64,66 @@ def final_info(output, sample, paths):
 
 
 def remove_inter_result(output):
-    print(f"Removing intermediate results from {output}...")
+    """
+    清理中间结果文件
+    
+    Args:
+        output: 输出目录路径
+    """
+    import glob
+    from utils.common import safe_remove_directory, get_logger
+    
+    logger = get_logger("remove_inter_result")
+    logger.info(f"开始清理中间结果文件: {output}")
+    
+    # 定义需要清理的中间结果目录
+    intermediate_dirs = [
+        "1.trimmed",
+        "2.host_removed",
+        "3.assembly",
+        "4.blastn",
+        "5.virsorter",
+        "6.dvf",
+        "7.vibrant",
+        "8.checkv_prefilter",
+        "9.combination",
+        "10.checkv",
+        "11.high_quality",
+        "12.final_non_dup"
+    ]
+    
+    cleaned_count = 0
+    for dir_name in intermediate_dirs:
+        dir_path = os.path.join(output, dir_name)
+        if os.path.exists(dir_path):
+            if safe_remove_directory(dir_path, logger):
+                cleaned_count += 1
+    
+    # 清理临时文件
+    temp_patterns = [
+        os.path.join(output, "*.tmp"),
+        os.path.join(output, "temp_*"),
+        os.path.join(output, "**/temp.txt"),
+    ]
+    
+    for pattern in temp_patterns:
+        for temp_file in glob.glob(pattern, recursive=True):
+            try:
+                os.remove(temp_file)
+                logger.info(f"删除临时文件: {temp_file}")
+                cleaned_count += 1
+            except Exception as e:
+                logger.warning(f"删除临时文件失败 {temp_file}: {e}")
+    
+    logger.info(f"清理完成，共清理 {cleaned_count} 个项目")
 
 
 def make_clean_dir(path):
     """
     创建一个干净的目录。如果目录已存在则先删除再新建。
+    
+    Args:
+        path: 目录路径
     """
     if os.path.exists(path):
         shutil.rmtree(path)
