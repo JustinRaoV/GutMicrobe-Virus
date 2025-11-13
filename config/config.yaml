@@ -1,0 +1,84 @@
+# 病毒组分析流程配置
+
+# 软件路径
+software:
+  fastp: fastp
+  bowtie2: bowtie2
+  megahit: megahit
+  vsearch: vsearch
+  checkv: checkv
+  virsorter: virsorter
+  dvf: ~/software/DeepVirFinder/dvf.py
+  vibrant: VIBRANT_run.py
+  seqkit: seqkit
+  vclust: vclust
+  phabox2: phabox2
+  prokka: prokka
+  cdhit: cd-hit-est
+  coverm: coverm
+
+# 软件参数
+parameters:
+  vsearch: --minseqlength 500
+  
+  # VirSorter2 三步参数
+  virsorter_pass1: --keep-original-seq --include-groups dsDNAphage,ssDNA --min-length 5000 --min-score 0.5
+  virsorter_pass2: --seqname-suffix-off --viral-gene-enrich-off --provirus-off --prep-for-dramv --include-groups dsDNAphage,ssDNA --min-length 5000 --min-score 0.5
+  
+  vclust: --min-ident 0.95 --out-ani 0.95
+  coverm: --min-read-percent-identity 95 --min-read-aligned-percent 75 -m count --output-format dense
+  
+  # CheckV预过滤阈值
+  checkv_prefilter_host_genes: 10
+  checkv_prefilter_ratio: 5
+  
+  # DeepVirFinder阈值
+  dvf_score_threshold: 0.9
+  dvf_pvalue_threshold: 0.01
+  
+  # BLASTN过滤阈值
+  blastn_pident: 50        # 序列一致性 >= 50%
+  blastn_evalue: 1e-10     # E-value <= 1e-10
+  blastn_qcovs: 80         # 查询覆盖度 >= 80%
+  
+  # BUSCO过滤阈值 (BUSCO基因/总基因 > 阈值则认为是细菌污染)
+  busco_ratio_threshold: 0.1
+
+# 病毒检测工具选择
+virus_detection:
+  enable_checkv_prefilter: true
+  enable_virsorter: true
+  enable_dvf: true
+  enable_vibrant: true
+  enable_blastn: true
+  min_tools_required: 1  # 至少几个工具检测到才认为是病毒
+
+# 数据库路径
+database:
+  root: ~/db
+
+# Singularity 容器配置
+singularity:
+  enabled: true  # 是否启用 Singularity 模式
+  sif_dir: ~/sif  # SIF 文件目录
+  binds: []  # 挂载路径列表，根据实际需要添加，如: ["/path/to/data:/data", "~/db:/db"]
+  
+  # 软件到 SIF 文件的映射 (如果软件名和 SIF 文件名不同)
+  sif_mapping:
+    fastp: fastp.sif
+    bowtie2: bowtie2.sif
+    megahit: megahit.sif
+    vsearch: vsearch.sif
+    checkv: checkv.sif
+    virsorter: virsorter2.sif
+    dvf: deepvirfinder.sif
+    vibrant: vibrant.sif
+    seqkit: seqkit.sif
+    blastn: blast.sif
+    busco: busco.sif
+    vclust: vclust.sif
+    phabox2: phabox2.sif
+    prokka: prokka.sif
+    cdhit: cdhit.sif
+    coverm: coverm.sif
+
