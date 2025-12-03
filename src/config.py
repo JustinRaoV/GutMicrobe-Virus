@@ -73,7 +73,7 @@ def get_database(config, name):
         'genomad': os.path.join(root, 'genomad'),
         'blastn': os.path.join(root, 'blastn_database'),
         'busco': os.path.join(root, 'bacteria_odb12'),
-        'vibrant': os.path.join(root, 'vibrant'),
+        'virsorter': os.path.join(root, 'db'),
     }
     
     return default_paths.get(name, os.path.join(root, name))

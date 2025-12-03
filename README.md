@@ -8,13 +8,14 @@
 
 ## 特性
 
-- 🔬 **多工具病毒检测**: 整合 VirSorter2, DeepVirFinder, VIBRANT, BLASTN, CheckV
+- 🔬 **主流病毒检测**: 整合 VirSorter2 + geNomad 两大主流工具
+- ✅ **严格质控**: CheckV 筛选 Complete/High/Medium quality + BUSCO 细菌污染<5%
 - 🧬 **灵活的输入模式**: 支持从测序文件或组装文件开始
 - 🐳 **Singularity 支持**: 无需本地安装软件，使用容器化部署
 - 📊 **智能依赖管理**: 自动检测步骤依赖，前置步骤更新自动触发后续重跑
 - 🔧 **高度可配置**: YAML 配置文件，灵活调整参数和工具
 - 📦 **批量处理**: 一键生成多样本分析脚本
-- 🧪 **病毒库构建**: vclust 去冗余 + PhaBox2 功能预测
+- 🧪 **病毒库构建**: vclust 去冗余(95% ANI) + PhaBox2 功能预测
 
 ## 项目结构
 
@@ -75,9 +76,12 @@ python run_upstream.py R1.fq.gz R2.fq.gz
 virus_detection:
   enable_checkv_prefilter: true
   enable_virsorter: true
-  enable_dvf: false         # 禁用某个工具
-  enable_vibrant: true
-  enable_blastn: true
+  enable_genomad: true      # 新增 geNomad 支持
+  min_tools_required: 1     # 取并集，至少几个工具检测到
+
+# BUSCO 细菌污染过滤 (< 5%)
+parameters:
+  busco_ratio_threshold: 0.05
 ```
 
 ## 使用
@@ -174,15 +178,17 @@ python run_upstream.py sample_R1.fq.gz sample_R2.fq.gz --host hg38 -o results
 python run_upstream.py sample_R1.fq.gz sample_R2.fq.gz --host hg38 -o results --force
 ```
 
-### BLASTN 多数据库过滤
+### 病毒质量筛选
 
-BLASTN 模块对 5 个病毒数据库进行比对并应用三重过滤：
+流程采用严格的两步质控策略：
 
-- **pident ≥ 50%**: 序列一致性
-- **evalue ≤ 1e-10**: E-value 阈值
-- **qcovs ≥ 80%**: 查询覆盖度
+**1. CheckV 质量筛选**
+- 保留: Complete, High-quality, Medium-quality
+- 移除: Low-quality, Not-determined
 
-可在 `config/config.yaml` 中调整阈值。详见: [BLASTN 过滤文档](docs/BLASTN_FILTER.md)
+**2. BUSCO 细菌污染过滤**
+- 移除: BUSCO 基因比例 > 5% 的序列（细菌污染）
+- 可在 `config/config.yaml` 中调整阈值
 
 ## 输出结果
 
@@ -191,21 +197,19 @@ BLASTN 模块对 5 个病毒数据库进行比对并应用三重过滤：
 ```
 results/
 ├── sample/
-│   ├── 1.trimmed/              # 质控后数据
-│   ├── 2.host_removed/         # 去宿主后数据
-│   ├── 3.assembly/             # 组装结果
-│   ├── 4.vsearch/              # 长度过滤结果
-│   ├── 5.checkv_prefilter/     # CheckV预过滤
-│   ├── 6.virsorter/            # VirSorter2结果
-│   ├── 7.dvf/                  # DeepVirFinder结果
-│   ├── 8.vibrant/              # VIBRANT结果
-│   ├── 9.blastn/               # BLASTN结果
-│   │   ├── blastn_virus.list   # 通过过滤的contig列表
-│   │   └── blastn_filtered.tsv # 详细过滤结果
-│   ├── 10.combination/         # 多工具整合结果
-│   ├── 11.checkv/              # CheckV质控
-│   ├── 12.high_quality/        # 高质量病毒序列
-│   └── 13.busco_filter/        # BUSCO过滤后最终结果 ⭐
+│   ├── 1.trimmed/              # 质控后数据 (Fastp)
+│   ├── 2.host_removed/         # 去宿主后数据 (Bowtie2)
+│   ├── 3.assembly/             # 组装结果 (Megahit)
+│   ├── 4.vsearch/              # 长度过滤结果 (>500bp)
+│   ├── 5.checkv_prefilter/     # CheckV预过滤（移除宿主污染）
+│   ├── 6.virsorter/            # VirSorter2 病毒检测（三步走）
+│   ├── 7.genomad/              # geNomad 病毒检测（end-to-end）
+│   ├── 8.combination/          # 病毒检测结果整合（VirSorter2 + geNomad 并集）
+│   │   ├── contigs.fa          # 整合后的病毒序列
+│   │   └── info.txt            # 各工具检出统计
+│   ├── 9.checkv/               # CheckV 质量评估
+│   ├── 10.high_quality/        # 高质量病毒序列（Complete/High/Medium）
+│   └── 11.busco_filter/        # BUSCO 细菌污染过滤后最终结果 (<5%) ⭐
 └── .status/                    # 步骤状态文件
 ```
 
@@ -233,7 +237,7 @@ bash test.sh
 
 - [Singularity 使用指南](docs/SINGULARITY.md)
 - [病毒库构建文档](docs/VIRUSLIB_USAGE.md)
-- [BLASTN 过滤逻辑](docs/BLASTN_FILTER.md)
+- [geNomad 使用说明](doc/genomad.md)
 - [完整使用指南](USAGE.md)
 
 ## 依赖软件
@@ -245,9 +249,8 @@ bash test.sh
 - vsearch (长度过滤)
 - CheckV (质控和预过滤)
 - VirSorter2 (病毒检测)
-- DeepVirFinder (病毒检测)
-- VIBRANT (病毒检测)
-- BLASTN (病毒数据库比对)
+- geNomad (病毒检测)
+- BUSCO (细菌污染评估)
 - seqkit (序列处理)
 
 ### 病毒库构建
@@ -261,12 +264,12 @@ bash test.sh
 
 如果使用本流程，请引用相关工具：
 
-- VirSorter2: Guo et al. (2021) Microbiome
-- CheckV: Nayfach et al. (2021) Nature Biotechnology
-- DeepVirFinder: Ren et al. (2020) Quantitative Biology
-- VIBRANT: Kieft et al. (2020) Microbiome
-- vclust: Kristensen et al. (2021) bioRxiv
-- PhaBox2: ...
+- **VirSorter2**: Guo et al. (2021) *Microbiome*. VirSorter2: a multi-classifier, expert-guided approach to detect diverse DNA and RNA viruses.
+- **geNomad**: Camargo et al. (2023) *Nature Biotechnology*. Identification of mobile genetic elements with geNomad.
+- **CheckV**: Nayfach et al. (2021) *Nature Biotechnology*. CheckV assesses the quality and completeness of metagenome-assembled viral genomes.
+- **BUSCO**: Manni et al. (2021) *Molecular Biology and Evolution*. BUSCO Update: Novel and Streamlined Workflows.
+- **vclust**: Kristensen et al. (2021) *bioRxiv*. Fast, accurate and user-friendly tool for viral metagenome clustering.
+- **PhaBox2**: Zhou et al. *In preparation*.
 
 ## 许可证
 
@@ -279,13 +282,15 @@ MIT License
 
 ## 更新日志
 
-### v1.0.0 (2025-11-10)
+### v2.0.0 (2025-12-02)
+- ✅ **重大更新**: 采用主流病毒检测工具 VirSorter2 + geNomad
+- ✅ **质控优化**: CheckV 筛选 Complete/High/Medium quality
+- ✅ **细菌污染过滤**: BUSCO 阈值调整为 <5%
+- ✅ **精简代码**: 移除 DeepVirFinder, VIBRANT, BLASTN（已被更优工具替代）
 - ✅ 完整的上游分析流程
 - ✅ Singularity 容器支持
-- ✅ 多工具病毒检测 (VirSorter2, DVF, VIBRANT, BLASTN)
-- ✅ BLASTN 完整过滤逻辑
 - ✅ 步骤依赖关系自动管理
-- ✅ 病毒库构建流程 (vclust + PhaBox2)
+- ✅ 病毒库构建流程 (vclust 95% ANI + PhaBox2)
 - ✅ 批量脚本生成工具
 - ✅ 支持从 reads 或 contigs 起始
 
@@ -305,25 +310,23 @@ MIT License
            ↓
     4. 长度过滤 (vsearch ≥500bp)
            ↓
-    5. CheckV预过滤 (去除宿主污染)
+    5. CheckV预过滤 (去除宿主污染严重的序列)
            ↓
     ┌────────────────────────────────┐
-    │  6. 多工具病毒检测（并行）      │
+    │  6. 病毒检测（并行）            │
     │  - VirSorter2 (三步走)          │
-    │  - DeepVirFinder                │
-    │  - VIBRANT                      │
-    │  - BLASTN (5个数据库)           │
+    │  - geNomad (end-to-end)         │
     └────────────────────────────────┘
            ↓
-    7. 结果整合 (多工具共识)
+    7. 结果整合 (VirSorter2 + geNomad 并集)
            ↓
-    8. CheckV质控
+    8. CheckV质量评估
            ↓
-    9. 高质量筛选
+    9. 高质量筛选 (Complete/High/Medium)
            ↓
-    10. BUSCO过滤 (去细菌污染)
+    10. BUSCO过滤 (去除细菌污染 <5%)
            ↓
-    高质量病毒序列
+    高质量病毒序列库
 
 ┌─────────────────────────────────────────────────────────────────┐
 │                  病毒库构建 (viruslib_pipeline.py)                │

@@ -8,10 +8,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from src.config import load_config, is_tool_enabled
 from src.logger import setup_logger
-from src.utils import get_sample_name, mark_step_done, is_step_done, ensure_dir, get_path, get_step_timestamp, invalidate_dependent_steps
+from src.utils import get_sample_name, save_checkpoint, load_checkpoint, ensure_dir, get_path
 from src.pipeline.preprocessing import run_fastp, run_host_removal, run_assembly, run_vsearch
 from src.pipeline.virus_detection import (
-    run_checkv_prefilter, run_virsorter, run_dvf, run_vibrant, run_blastn, get_enabled_tools
+    run_virsorter, run_genomad, get_enabled_tools
 )
 from src.pipeline.quality import run_combination, run_checkv, run_high_quality, run_busco
 
@@ -43,8 +43,8 @@ def parse_args():
 
 def get_step_dirs(output):
     """生成各步骤目录"""
-    steps = ["trimmed", "host_removed", "assembly", "vsearch", "checkv_prefilter", "virsorter", 
-             "dvf", "vibrant", "blastn", "combination", "checkv", "high_quality", "busco_filter"]
+    steps = ["trimmed", "host_removed", "assembly", "vsearch", "virsorter", 
+             "genomad", "combination", "checkv", "high_quality", "busco_filter"]
     return {s: os.path.join(output, f"{i+1}.{s}") for i, s in enumerate(steps)}
 
 
@@ -89,48 +89,38 @@ def run_pipeline(args):
     ctx["logger"].info(f"样本: {ctx['sample']}")
     ctx["logger"].info(f"起始模式: {ctx['start_from']}")
     ctx["logger"].info(f"检测工具: {', '.join(get_enabled_tools(config))}")
+    
+    # 确定起始步骤
     if ctx["force"]:
-        ctx["logger"].info("强制模式: 将重跑所有步骤")
+        start_step = 1
+        ctx["logger"].info("强制模式: 将从头开始运行")
+    else:
+        # 加载断点，获取上次成功完成的步骤
+        last_completed = load_checkpoint(ctx["output_dir"], ctx["sample"])
+        start_step = last_completed + 1
+        if last_completed > 0:
+            ctx["logger"].info(f"检测到断点: 上次完成到第{last_completed}步，将从第{start_step}步继续")
     
     # 从 contigs 开始时，准备输入文件
     if ctx["start_from"] == "contigs":
         import shutil
         assembly_dir = ensure_dir(get_path(ctx, "assembly"))
         target_file = os.path.join(assembly_dir, "final.contigs.fa")
-        shutil.copy2(ctx["contigs_file"], target_file)
-        ctx["logger"].info(f"已复制 contigs 文件到: {target_file}")
-        mark_step_done(ctx["output_dir"], ctx["sample"], "trimmed")
-        mark_step_done(ctx["output_dir"], ctx["sample"], "host_removed")
-        mark_step_done(ctx["output_dir"], ctx["sample"], "assembly")
-    
-    # 定义步骤依赖关系
-    step_dependencies = {
-        "trimmed": [],
-        "host_removed": ["trimmed"],
-        "assembly": ["host_removed"],
-        "vsearch": ["assembly"],
-        "checkv_prefilter": ["vsearch"],
-        "virsorter": ["checkv_prefilter"],  # 依赖预过滤结果
-        "dvf": ["checkv_prefilter"],
-        "vibrant": ["checkv_prefilter"],
-        "blastn": ["checkv_prefilter"],
-        "combination": ["virsorter", "dvf", "vibrant", "blastn", "checkv_prefilter"],
-        "checkv": ["combination"],
-        "high_quality": ["checkv"],
-        "busco_filter": ["high_quality"],
-    }
+        if not os.path.exists(target_file):
+            shutil.copy2(ctx["contigs_file"], target_file)
+            ctx["logger"].info(f"已复制 contigs 文件到: {target_file}")
+        # contigs模式最少从第4步(vsearch)开始
+        if start_step < 4:
+            start_step = 4
     
     # 定义流程 (步骤名, 函数, 步骤标识符, 工具名[可选])
     steps = [
         ("质控", run_fastp, "trimmed"),
         ("去宿主", run_host_removal, "host_removed"),
         ("组装", run_assembly, "assembly"),
-        ("长度过滤", run_vsearch, "vsearch"),
-        ("CheckV预过滤", run_checkv_prefilter, "checkv_prefilter", "checkv_prefilter"),
-        ("VirSorter", run_virsorter, "virsorter", "virsorter"),
-        ("DeepVirFinder", run_dvf, "dvf", "dvf"),
-        ("VIBRANT", run_vibrant, "vibrant", "vibrant"),
-        ("BLASTN", run_blastn, "blastn", "blastn"),
+        ("长度过滤(≥1500bp)", run_vsearch, "vsearch"),
+        ("VirSorter2", run_virsorter, "virsorter", "virsorter"),
+        ("geNomad", run_genomad, "genomad", "genomad"),
         ("结果整合", run_combination, "combination"),
         ("CheckV质控", run_checkv, "checkv"),
         ("高质量筛选", run_high_quality, "high_quality"),
@@ -147,28 +137,16 @@ def run_pipeline(args):
             ctx["logger"].info(f"[{i}/{len(steps)}] {name} - 已禁用,跳过")
             continue
         
-        # 检查依赖关系：如果依赖步骤比当前步骤新，需要重跑
-        need_rerun = False
-        if not ctx["force"] and is_step_done(ctx["output_dir"], ctx["sample"], step_key):
-            current_timestamp = get_step_timestamp(ctx["output_dir"], ctx["sample"], step_key)
-            dependencies = step_dependencies.get(step_key, [])
-            
-            for dep_step in dependencies:
-                dep_timestamp = get_step_timestamp(ctx["output_dir"], ctx["sample"], dep_step)
-                if dep_timestamp and current_timestamp and dep_timestamp > current_timestamp:
-                    need_rerun = True
-                    ctx["logger"].info(f"[{i}/{len(steps)}] {name} - 依赖步骤已更新,需要重跑")
-                    break
-            
-            if not need_rerun:
-                ctx["logger"].info(f"[{i}/{len(steps)}] {name} - 已完成,跳过")
-                continue
+        # 根据断点跳过已完成的步骤
+        if i < start_step:
+            ctx["logger"].info(f"[{i}/{len(steps)}] {name} - 已完成,跳过")
+            continue
         
         # 执行步骤
         ctx["logger"].info(f"[{i}/{len(steps)}] {name}")
         try:
             func(ctx)
-            mark_step_done(ctx["output_dir"], ctx["sample"], step_key)
+            save_checkpoint(ctx["output_dir"], ctx["sample"], i)
             ctx["logger"].info(f"[{i}/{len(steps)}] {name} - 完成")
         except Exception as e:
             ctx["logger"].error(f"{name}失败: {e}")

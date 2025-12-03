@@ -44,41 +44,34 @@ def copy_files(src_dir, dst_dir, files):
         shutil.copy2(os.path.join(src_dir, f), os.path.join(dst_dir, f))
 
 
-def mark_step_done(output_dir, sample, step_name):
-    """标记步骤完成"""
-    status_dir = os.path.join(output_dir, ".status", sample)
-    ensure_dir(status_dir)
-    status_file = os.path.join(status_dir, f"{step_name}.done")
-    with open(status_file, "w") as f:
-        from datetime import datetime
-        f.write(f"completed_at: {datetime.now().isoformat()}\n")
+def get_checkpoint_file(output_dir, sample):
+    """获取断点文件路径"""
+    checkpoint_dir = os.path.join(output_dir, "checkpoints")
+    ensure_dir(checkpoint_dir)
+    return os.path.join(checkpoint_dir, f"{sample}.checkpoint")
 
 
-def is_step_done(output_dir, sample, step_name):
-    """检查步骤是否已完成"""
-    status_file = os.path.join(output_dir, ".status", sample, f"{step_name}.done")
-    return os.path.exists(status_file)
+def save_checkpoint(output_dir, sample, step_index):
+    """保存断点（当前成功完成的步骤序号）"""
+    checkpoint_file = get_checkpoint_file(output_dir, sample)
+    with open(checkpoint_file, "w") as f:
+        f.write(str(step_index))
 
 
-def get_step_timestamp(output_dir, sample, step_name):
-    """获取步骤完成时间戳"""
-    status_file = os.path.join(output_dir, ".status", sample, f"{step_name}.done")
-    if os.path.exists(status_file):
-        return os.path.getmtime(status_file)
-    return None
+def load_checkpoint(output_dir, sample):
+    """加载断点，返回上次成功完成的步骤序号，如果没有则返回0"""
+    checkpoint_file = get_checkpoint_file(output_dir, sample)
+    if os.path.exists(checkpoint_file):
+        with open(checkpoint_file, "r") as f:
+            try:
+                return int(f.read().strip())
+            except ValueError:
+                return 0
+    return 0
 
 
-def invalidate_dependent_steps(output_dir, sample, step_name, step_dependencies):
-    """使依赖该步骤的后续步骤失效"""
-    status_dir = os.path.join(output_dir, ".status", sample)
-    if not os.path.exists(status_dir):
-        return
-    
-    # 找出所有依赖当前步骤的后续步骤
-    for dependent_step, dependencies in step_dependencies.items():
-        if step_name in dependencies:
-            status_file = os.path.join(status_dir, f"{dependent_step}.done")
-            if os.path.exists(status_file):
-                os.remove(status_file)
-                # 递归使该步骤的依赖步骤也失效
-                invalidate_dependent_steps(output_dir, sample, dependent_step, step_dependencies)
+def clear_checkpoint(output_dir, sample):
+    """清除断点文件"""
+    checkpoint_file = get_checkpoint_file(output_dir, sample)
+    if os.path.exists(checkpoint_file):
+        os.remove(checkpoint_file)
