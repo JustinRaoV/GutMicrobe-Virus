@@ -98,6 +98,9 @@ database:
 python run_upstream.py R1.fq.gz R2.fq.gz --start-from reads --host human -t 32 -o result/ --config config/config.yaml
 ```
 
+说明：在 Singularity 模式下，为了避免容器无法直接访问原始数据路径，流程会在 `fastp` 前先将 reads 复制到当前样本的输出目录下进行质控，`fastp` 成功后自动删除临时拷贝。
+可在 `config/config.yaml` 中通过 `parameters.stage_reads` 和 `parameters.stage_keep_on_fail` 控制该行为。
+
 **从组装文件开始:**
 ```bash
 python run_upstream.py contigs.fa --start-from contigs -t 32 -o result/ --config config/config.yaml

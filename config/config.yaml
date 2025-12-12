@@ -5,7 +5,7 @@ env:
   # Conda环境激活命令
   activate_cmd: source /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/miniconda3/bin/activate && source activate /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/miniconda3/envs/vs2
   # 模块加载命令 (建议仅用于CFFF模式)
-  module_load: module load CentOS/7.9/Anaconda3/24.5.0
+  module_load: module load CentOS/7.9/Anaconda3/24.5.0 && module load CentOS/7.9/singularity/3.9.2
 
 # 批量脚本生成默认参数 (make.py)
 batch:
@@ -34,6 +34,11 @@ software:
 
 # 软件参数
 parameters:
+  # reads 在运行 fastp 前先拷贝到样本输出目录，避免 Singularity/路径可见性问题
+  stage_reads: true
+  # fastp 失败时是否保留 staging 文件用于排查
+  stage_keep_on_fail: true
+
   vsearch: --minseqlength 1500
   
   # VirSorter2 三步参数

@@ -19,18 +19,29 @@ def get_software(config, name):
     use_singularity = config.get('singularity', {}).get('enabled', False)
     
     if use_singularity:
-        sif_dir = config.get('singularity', {}).get('sif_dir', '~/sif')
+        sif_dir = os.path.expanduser(config.get('singularity', {}).get('sif_dir', '~/sif'))
         sif_binds = config.get('singularity', {}).get('binds', [])
+        # 展开~并做浅拷贝
+        sif_binds = [os.path.expanduser(b) for b in sif_binds] if sif_binds else []
         
         # 获取软件对应的 sif 文件名
         sif_mapping = config.get('singularity', {}).get('sif_mapping', {})
         sif_file = sif_mapping.get(name, f"{name}.sif")
         sif_path = os.path.join(sif_dir, sif_file)
         
-        # 构建 bind 参数
-        bind_args = ""
-        if sif_binds:
-            bind_args = " ".join([f"-B {b}" for b in sif_binds])
+        # 构建 bind 参数：仅使用配置文件中的 binds
+        # 去重并只保留存在的路径
+        dedup = []
+        for b in sif_binds:
+            b = b.strip()
+            if not b or b in dedup:
+                continue
+            # 支持 "src:dst" 形式时，仅检查 src
+            src = b.split(":", 1)[0]
+            if os.path.exists(src):
+                dedup.append(b)
+
+        bind_args = " ".join([f"-B {b}" for b in dedup]) if dedup else ""
         
         # 软件名称（容器内命令）- 直接使用软件名，不从 software 配置读取
         software_cmd = name

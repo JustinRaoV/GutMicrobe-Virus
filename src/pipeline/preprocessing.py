@@ -1,6 +1,7 @@
 """基础分析步骤: 质控、去宿主、组装、过滤"""
 import os
 import subprocess
+import shutil
 from src.config import get_software, get_params, get_database
 from src.utils import ensure_dir, get_path, copy_files
 
@@ -8,15 +9,43 @@ from src.utils import ensure_dir, get_path, copy_files
 def run_fastp(ctx):
     """质控"""
     out_dir = ensure_dir(get_path(ctx, "trimmed"))
+
+    cfg_params = ctx.get("config", {}).get("parameters", {})
+    stage_reads = bool(cfg_params.get("stage_reads", True))
+    stage_keep_on_fail = bool(cfg_params.get("stage_keep_on_fail", True))
+
+    r1_in = ctx["input1"]
+    r2_in = ctx["input2"]
+
+    stage_dir = os.path.join(out_dir, "_staging")
+    stage_r1 = os.path.join(stage_dir, os.path.basename(r1_in))
+    stage_r2 = os.path.join(stage_dir, os.path.basename(r2_in))
+
+    if stage_reads:
+        ensure_dir(stage_dir)
+        ctx["logger"].info("fastp: staging 输入文件到本地工作目录")
+        shutil.copy2(r1_in, stage_r1)
+        shutil.copy2(r2_in, stage_r2)
+        r1_use, r2_use = stage_r1, stage_r2
+    else:
+        r1_use, r2_use = r1_in, r2_in
+
     cmd = (
         f"{get_software(ctx['config'], 'fastp')} "
-        f"-i {ctx['input1']} -I {ctx['input2']} "
+        f"-i {r1_use} -I {r2_use} "
         f"-o {out_dir}/{ctx['sample1']}.fq.gz -O {out_dir}/{ctx['sample2']}.fq.gz "
         f"{get_params(ctx['config'], 'fastp')} -w {ctx['threads']} "
         f"-h {out_dir}/report.html"
     )
-    subprocess.run(cmd, shell=True, check=True)
-    ctx["logger"].info("质控完成")
+    try:
+        subprocess.run(cmd, shell=True, check=True)
+        ctx["logger"].info("质控完成")
+        if stage_reads:
+            shutil.rmtree(stage_dir, ignore_errors=True)
+    except Exception:
+        if stage_reads and not stage_keep_on_fail:
+            shutil.rmtree(stage_dir, ignore_errors=True)
+        raise
 
 
 def run_host_removal(ctx):

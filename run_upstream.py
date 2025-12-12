@@ -51,7 +51,13 @@ def build_context(args, config):
     """构建流程上下文"""
     # 根据起始模式确定样本名
     if args.start_from == "reads":
-        sample = get_sample_name(os.path.basename(args.input1))[:-2]
+        # 从R1文件名推断样本名，避免简单截断导致尾随"_"等问题
+        r1_base = get_sample_name(os.path.basename(args.input1))
+        for suffix in ("_R1", "_1", ".R1", ".1"):
+            if r1_base.endswith(suffix):
+                r1_base = r1_base[: -len(suffix)]
+                break
+        sample = r1_base.rstrip("_ .")
     else:  # contigs模式
         sample = os.path.splitext(os.path.basename(args.input1))[0]
     
