@@ -25,7 +25,6 @@ def parse_args():
     p.add_argument("--host", help="宿主基因组(逗号分隔)", default=None)
     p.add_argument("-o", "--output", default="result", help="输出目录")
     p.add_argument("-t", "--threads", type=int, default=1, help="线程数")
-    p.add_argument("--db", default="~/db", help="数据库目录")
     p.add_argument("--config", default="config/config.yaml", help="配置文件")
     p.add_argument("--log-level", default="INFO", help="日志级别")
     p.add_argument("--force", action="store_true", help="强制重跑所有步骤(忽略状态文件)")
@@ -59,7 +58,6 @@ def build_context(args, config):
     ctx = {
         "sample": sample,
         "threads": args.threads,
-        "db": args.db,
         "paths": get_step_dirs(args.output),
         "config": config,
         "logger": setup_logger(sample, args.output, args.log_level),

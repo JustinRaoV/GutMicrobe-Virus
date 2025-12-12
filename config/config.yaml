@@ -4,8 +4,17 @@
 env:
   # Conda环境激活命令
   activate_cmd: source /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/miniconda3/bin/activate && source activate /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/miniconda3/envs/vs2
-  # 模块加载命令 (仅SLURM/PBS需要)
+  # 模块加载命令 (建议仅用于CFFF模式)
   module_load: module load CentOS/7.9/Anaconda3/24.5.0
+
+# 批量脚本生成默认参数 (make.py)
+batch:
+  # slurm | cfff
+  scheduler: slurm
+  threads: 8
+  mem: 60
+  # reads 模式下默认宿主 (可为逗号分隔, 会透传给 run_upstream.py 的 --host)
+  host: human
 
 # 软件路径
 software:
@@ -48,7 +57,20 @@ virus_detection:
 
 # 数据库路径
 database:
-  root: ~/db
+  # 宿主去重数据库目录 (包含各个宿主的bowtie2索引目录)
+  bowtie2_index: ~/db/bowtie2_index
+  
+  # 病毒检测数据库
+  checkv: ~/db/checkv
+  virsorter: ~/db/db
+  genomad: ~/db/genomad
+  
+  # 质量评估数据库
+  busco: ~/db/bacteria_odb12
+  
+  # 其他数据库
+  phabox2: ~/db/phabox2
+  blastn: ~/db/blastn_database
 
 # Singularity 容器配置
 singularity:

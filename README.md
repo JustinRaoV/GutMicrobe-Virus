@@ -67,21 +67,26 @@ python run_upstream.py R1.fq.gz R2.fq.gz
 
 详见: [Singularity 使用文档](docs/SINGULARITY.md)
 
-## 配置
+## 数据库配置
 
-编辑 `config/config.yaml`:
+所有数据库路径均在 `config/config.yaml` 中统一管理，无需修改代码。
 
 ```yaml
-# 启用/禁用病毒检测工具
-virus_detection:
-  enable_checkv_prefilter: true
-  enable_virsorter: true
-  enable_genomad: true      # 新增 geNomad 支持
-  min_tools_required: 1     # 取并集，至少几个工具检测到
-
-# BUSCO 细菌污染过滤 (< 5%)
-parameters:
-  busco_ratio_threshold: 0.05
+database:
+  # 宿主去重数据库目录 (包含各个宿主的bowtie2索引目录)
+  bowtie2_index: ~/db/bowtie2_index
+  
+  # 病毒检测数据库
+  checkv: ~/db/checkv
+  virsorter: ~/db/db
+  genomad: ~/db/genomad
+  
+  # 质量评估数据库
+  busco: ~/db/bacteria_odb12
+  
+  # 其他数据库
+  phabox2: ~/db/phabox2
+  blastn: ~/db/blastn_database
 ```
 
 ## 使用
@@ -90,36 +95,50 @@ parameters:
 
 **从测序文件开始:**
 ```bash
-python run_upstream.py R1.fq.gz R2.fq.gz --start-from reads --host hg38 -t 32 -o result/
+python run_upstream.py R1.fq.gz R2.fq.gz --start-from reads --host human -t 32 -o result/ --config config/config.yaml
 ```
 
 **从组装文件开始:**
 ```bash
-python run_upstream.py contigs.fa --start-from contigs -t 32 -o result/
+python run_upstream.py contigs.fa --start-from contigs -t 32 -o result/ --config config/config.yaml
 ```
 
-### 批量分析
+### 批量生成脚本
 
-**从测序文件批量分析:**
+使用 `make.py` 生成批量作业脚本，支持 SLURM 和 CFFF 两种服务器环境。
+
+**基本用法:**
+
 ```bash
-# 生成脚本
-python make.py /path/to/reads_dir --mode reads --host hg38 -t 32 -o result/
+# 1. 测序数据模式 (reads)
+python make.py /path/to/data --mode reads --host human -o result/
 
-# 运行所有样本
-bash result/submit_all.sh
-
-# 或单独运行某个样本
-bash result/scripts/run_001_sample1.sh
+# 2. 组装结果模式 (contigs)
+python make.py /path/to/data --mode contigs -o result/
 ```
 
-**从contigs文件批量分析:**
+**指定调度系统:**
+
 ```bash
-# 生成脚本
-python make.py /path/to/contigs_dir --mode contigs -t 32 -o result/
+# SLURM (不指定queue/partition；资源在脚本头中写明)
+python make.py /path/to/data --mode reads --host human --scheduler slurm --mem 128
 
-# 运行所有样本
-bash result/submit_all.sh
+# CFFF 专用环境 (自动加载 module 和 conda)
+python make.py /path/to/data --mode reads --host human --scheduler cfff
 ```
+
+**参数说明:**
+
+- `--mode`: `reads` (测序数据) 或 `contigs` (组装结果)
+- `--host`: 宿主名称 (reads模式必需)，对应 `config.yaml` 中 `database.bowtie2_index` 下的目录名
+- `--scheduler`: `slurm`, `cfff`
+- `--config`: 指定配置文件 (默认使用 `config/config.yaml`)
+- `-t`: 线程数
+- `--mem`: 内存大小(GB)
+
+说明：`make.py` 的默认 `scheduler/threads/mem/host` 优先从 `config/config.yaml` 的 `batch` 段读取，命令行参数用于覆盖。
+
+生成的脚本位于 `scripts/` 目录；SLURM 使用 `submit_jobs.txt`，CFFF 使用 `submit_all.sh`。
 
 ### 病毒库构建
 

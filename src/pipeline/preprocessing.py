@@ -1,7 +1,7 @@
 """基础分析步骤: 质控、去宿主、组装、过滤"""
 import os
 import subprocess
-from src.config import get_software, get_params
+from src.config import get_software, get_params, get_database
 from src.utils import ensure_dir, get_path, copy_files
 
 
@@ -35,7 +35,9 @@ def run_host_removal(ctx):
     
     # 对每个宿主运行bowtie2
     for host in ctx["host_list"]:
-        index = os.path.join(ctx["db"], "bowtie2_index", host, host)
+        # 从配置中获取bowtie2索引根目录
+        bowtie2_base = get_database(ctx['config'], 'bowtie2_index')
+        index = os.path.join(bowtie2_base, host, host)
         r1, r2 = [os.path.join(out_dir, f) for f in files]
         
         cmd = (

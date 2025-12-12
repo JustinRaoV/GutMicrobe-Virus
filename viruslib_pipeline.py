@@ -17,7 +17,6 @@ def parse_args():
     p.add_argument("-t", "--threads", type=int, default=1, help="线程数")
     p.add_argument("-o", "--output", default="viruslib_result", help="输出目录 (默认: viruslib_result)")
     p.add_argument("--upstream-result", help="上游分析结果目录 (默认从此目录读取所有样本的13.busco_filter/*/contigs.fa)")
-    p.add_argument("--db", default="~/db", help="数据库目录")
     p.add_argument("--config", default="config/config.yaml", help="配置文件")
     
     args = p.parse_args()

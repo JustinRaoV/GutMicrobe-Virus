@@ -12,7 +12,6 @@ python run_upstream.py \
     --host hg38 \
     -o results \
     -t 16 \
-    --db ~/db \
     --config config/config.yaml \
     --log-level INFO
 
@@ -23,7 +22,6 @@ python run_upstream.py \
     --start-from contigs \
     -o results \
     -t 16 \
-    --db ~/db \
     --config config/config.yaml \
     --log-level INFO
 
@@ -54,7 +52,6 @@ python viruslib_pipeline.py \
     --upstream-result results \
     -t 16 \
     -o viruslib_result \
-    --db ~/db \
     --config config/config.yaml
 
 # 测试6: 从指定contigs目录构建病毒库
@@ -63,7 +60,6 @@ python viruslib_pipeline.py \
     -i /home/raojun/testdata/final_contigs/ \
     -t 16 \
     -o viruslib_result_custom \
-    --db ~/db \
     --config config/config.yaml
 
 # 测试7: 检查病毒库结果
