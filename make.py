@@ -168,6 +168,8 @@ def generate_scripts(args):
         # 生成作业头
         if scheduler == "slurm":
             header = get_slurm_header(sample_name, threads, mem, None, log_dir, config)
+            # SLURM 模式下默认启用 stage_reads
+            cmd += " --stage-reads"
         elif scheduler == "cfff":
             header = get_cfff_header(sample_name, threads, mem, log_dir, config)
         else:

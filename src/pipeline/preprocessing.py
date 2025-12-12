@@ -30,12 +30,30 @@ def run_fastp(ctx):
     else:
         r1_use, r2_use = r1_in, r2_in
 
+    # 构建命令参数 (尝试使用相对路径以兼容 Singularity)
+    cwd = os.getcwd()
+    
+    def to_rel(path):
+        try:
+            abs_path = os.path.abspath(path)
+            if abs_path.startswith(cwd):
+                return os.path.relpath(abs_path, cwd)
+        except Exception:
+            pass
+        return path
+
+    r1_cmd = to_rel(r1_use)
+    r2_cmd = to_rel(r2_use)
+    out_r1 = to_rel(os.path.join(out_dir, f"{ctx['sample1']}.fq.gz"))
+    out_r2 = to_rel(os.path.join(out_dir, f"{ctx['sample2']}.fq.gz"))
+    report = to_rel(os.path.join(out_dir, "report.html"))
+
     cmd = (
         f"{get_software(ctx['config'], 'fastp')} "
-        f"-i {r1_use} -I {r2_use} "
-        f"-o {out_dir}/{ctx['sample1']}.fq.gz -O {out_dir}/{ctx['sample2']}.fq.gz "
+        f"-i {r1_cmd} -I {r2_cmd} "
+        f"-o {out_r1} -O {out_r2} "
         f"{get_params(ctx['config'], 'fastp')} -w {ctx['threads']} "
-        f"-h {out_dir}/report.html"
+        f"-h {report}"
     )
     try:
         subprocess.run(cmd, shell=True, check=True)

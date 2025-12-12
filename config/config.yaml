@@ -35,7 +35,8 @@ software:
 # 软件参数
 parameters:
   # reads 在运行 fastp 前先拷贝到样本输出目录，避免 Singularity/路径可见性问题
-  stage_reads: true
+  # 默认 false (CFFF模式推荐 false, SLURM模式推荐 true)
+  stage_reads: false
   # fastp 失败时是否保留 staging 文件用于排查
   stage_keep_on_fail: true
 

@@ -95,11 +95,10 @@ database:
 
 **从测序文件开始:**
 ```bash
-python run_upstream.py R1.fq.gz R2.fq.gz --start-from reads --host human -t 32 -o result/ --config config/config.yaml
+python run_upstream.py R1.fq.gz R2.fq.gz --start-from reads --host hg38 -t 32 -o result/ --config config/config.yaml
 ```
 
-说明：在 Singularity 模式下，为了避免容器无法直接访问原始数据路径，流程会在 `fastp` 前先将 reads 复制到当前样本的输出目录下进行质控，`fastp` 成功后自动删除临时拷贝。
-可在 `config/config.yaml` 中通过 `parameters.stage_reads` 和 `parameters.stage_keep_on_fail` 控制该行为。
+说明：在 Singularity 模式下，程序会自动探测输入文件和数据库的路径，并将其挂载到容器中（`-B` 参数），无需手动配置复杂的挂载路径。
 
 **从组装文件开始:**
 ```bash
@@ -114,7 +113,7 @@ python run_upstream.py contigs.fa --start-from contigs -t 32 -o result/ --config
 
 ```bash
 # 1. 测序数据模式 (reads)
-python make.py /path/to/data --mode reads --host human -o result/
+python make.py /path/to/data --mode reads --host hg38 -o result/
 
 # 2. 组装结果模式 (contigs)
 python make.py /path/to/data --mode contigs -o result/
@@ -124,10 +123,10 @@ python make.py /path/to/data --mode contigs -o result/
 
 ```bash
 # SLURM (不指定queue/partition；资源在脚本头中写明)
-python make.py /path/to/data --mode reads --host human --scheduler slurm --mem 128
+python make.py /path/to/data --mode reads --host hg38 --scheduler slurm --mem 128
 
 # CFFF 专用环境 (自动加载 module 和 conda)
-python make.py /path/to/data --mode reads --host human --scheduler cfff
+python make.py /path/to/data --mode reads --host hg38 --scheduler cfff
 ```
 
 **参数说明:**

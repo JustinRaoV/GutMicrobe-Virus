@@ -28,6 +28,7 @@ def parse_args():
     p.add_argument("--config", default="config/config.yaml", help="配置文件")
     p.add_argument("--log-level", default="INFO", help="日志级别")
     p.add_argument("--force", action="store_true", help="强制重跑所有步骤(忽略状态文件)")
+    p.add_argument("--stage-reads", action="store_true", help="启用 reads staging (复制到本地目录)")
     
     args = p.parse_args()
     
@@ -82,6 +83,65 @@ def build_context(args, config):
     else:  # contigs模式
         ctx["contigs_file"] = args.input1
     
+    # 覆盖配置中的 stage_reads 参数
+    if args.stage_reads:
+        if "parameters" not in config:
+            config["parameters"] = {}
+        config["parameters"]["stage_reads"] = True
+
+    # 自动配置 Singularity 挂载路径
+    if config.get('singularity', {}).get('enabled', False):
+        binds = set(config.get('singularity', {}).get('binds', []))
+        
+        # 1. 添加输入文件所在目录 (仅当未启用 stage_reads 时)
+        # 如果启用了 stage_reads，文件会被复制到工作目录，通常无需挂载原始目录
+        # 但为了保险起见，我们还是挂载它，除非它导致问题
+        input_files = []
+        if args.start_from == "reads":
+            input_files = [args.input1, args.input2]
+        elif args.start_from == "contigs":
+            input_files = [args.input1]
+            
+        for f in input_files:
+            if f:
+                binds.add(os.path.dirname(os.path.abspath(f)))
+        
+        # 2. 添加数据库目录
+        # 优先使用 database.root，如果未定义则扫描所有数据库路径
+        db_conf = config.get('database', {})
+        if 'root' in db_conf:
+            binds.add(os.path.abspath(os.path.expanduser(db_conf['root'])))
+        else:
+            for k, v in db_conf.items():
+                if isinstance(v, str) and os.path.isabs(os.path.expanduser(v)):
+                    binds.add(os.path.abspath(os.path.expanduser(v)))
+        
+        # 3. 添加 SIF 目录
+        sif_dir = config.get('singularity', {}).get('sif_dir')
+        if sif_dir:
+            binds.add(os.path.abspath(os.path.expanduser(sif_dir)))
+
+        # 4. 添加当前工作目录和输出目录 (确保 staging 目录和结果目录可见)
+        binds.add(os.getcwd())
+        binds.add(os.path.abspath(args.output))
+
+        # 5. 智能去重 (保留父目录，移除子目录)
+        # 例如: 有 /a 和 /a/b，只保留 /a
+        sorted_paths = sorted([os.path.abspath(p) for p in binds if os.path.exists(p)], key=len)
+        final_binds = []
+        for p in sorted_paths:
+            # 检查 p 是否是 final_binds 中某个路径的子目录
+            is_subdir = False
+            for parent in final_binds:
+                if p.startswith(parent + os.sep) or p == parent:
+                    is_subdir = True
+                    break
+            if not is_subdir:
+                final_binds.append(p)
+        
+        config['singularity']['binds'] = final_binds
+        ctx['logger'].info(f"Singularity 挂载路径: {final_binds}")
+
     return ctx
 
 
