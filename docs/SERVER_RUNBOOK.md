@@ -16,6 +16,13 @@ git checkout <tag>
 - 数据库目录（示例：`/data/db/`）
 - 样本表 TSV（示例：`/data/project/raw/samples.tsv`）
 
+如果你所在站点需要通过 module 提供 Singularity（如 CentOS7 集群），先加载：
+
+```bash
+module load CentOS/7.9/Anaconda3/24.5.0
+module load CentOS/7.9/singularity/3.9.2
+```
+
 ## 3. 修改配置
 
 - `config/pipeline.yaml`
@@ -41,6 +48,15 @@ PYTHONPATH=src python -m gmv.cli run --config config/pipeline.yaml --profile loc
 
 ```bash
 PYTHONPATH=src python -m gmv.cli run --config config/pipeline.yaml --profile slurm
+```
+
+### 两阶段（推荐）
+
+上游按样本高并发，项目级汇总在 SLURM 下会 group 为 1 个 job（viruslib + downstream + agent）：
+
+```bash
+PYTHONPATH=src python -m gmv.cli run --config config/pipeline.yaml --profile slurm --stage upstream
+PYTHONPATH=src python -m gmv.cli run --config config/pipeline.yaml --profile slurm --stage project
 ```
 
 ### Dry-run

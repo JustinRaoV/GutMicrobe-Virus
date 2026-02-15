@@ -82,6 +82,16 @@ PYTHONPATH=src python -m gmv.cli validate --config config/pipeline.yaml
 PYTHONPATH=src python -m gmv.cli run --config config/pipeline.yaml --profile local
 ```
 
+两阶段（推荐用于集群成本控制）：
+
+```bash
+# 1) 上游：按样本高并发跑到 BUSCO filter（不做项目级汇总）
+PYTHONPATH=src python -m gmv.cli run --config config/pipeline.yaml --profile local --stage upstream
+
+# 2) 项目级：viruslib + downstream + agent（在 SLURM 下会 group 为 1 个 job）
+PYTHONPATH=src python -m gmv.cli run --config config/pipeline.yaml --profile local --stage project
+```
+
 SLURM：
 
 ```bash
@@ -110,6 +120,14 @@ PYTHONPATH=src python -m gmv.cli report --config config/pipeline.yaml
 
 ```bash
 PYTHONPATH=src python -m gmv.cli agent replay --file results/<run_id>/agent/decisions.jsonl
+```
+
+## Agent 资源学习（可选）
+
+若集群支持 `sacct` 且 Snakemake SLURM 运行日志可解析出 jobid，可生成下一轮更省的 `resources.estimation.overrides` 建议：
+
+```bash
+PYTHONPATH=src python -m gmv.cli agent harvest --config config/pipeline.yaml --run-id <run_id>
 ```
 
 ## 一键发布验收

@@ -29,6 +29,18 @@ class CliIntegrationTests(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, msg=proc.stdout + proc.stderr)
         self.assertIn("genomad", proc.stdout)
 
+    def test_agent_harvest_command_creates_overrides_file(self):
+        cfg = ROOT / "tests" / "fixtures" / "minimal" / "config" / "pipeline.yaml"
+        out_file = ROOT / "results" / "test-run" / "agent" / "resources_overrides.yaml"
+        if out_file.exists():
+            out_file.unlink()
+
+        cmd = [sys.executable, "-m", "gmv.cli", "agent", "harvest", "--config", str(cfg), "--run-id", "test-run"]
+        env = {**os.environ, **{"PYTHONPATH": str(ROOT / "src")}}
+        proc = subprocess.run(cmd, cwd=ROOT, env=env, capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0, msg=proc.stdout + proc.stderr)
+        self.assertTrue(out_file.exists(), msg="missing resources_overrides.yaml")
+
 
 if __name__ == "__main__":
     unittest.main()

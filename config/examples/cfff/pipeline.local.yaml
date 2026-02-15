@@ -61,6 +61,11 @@ resources:
   limits:
     checkv: 1
     virsorter: 1
+  # Offline resource estimation (mem_mb/runtime) to reduce SLURM waste.
+  estimation:
+    enabled: true
+    fudge: 1.2
+    overrides: {}
   slurm:
     account: ""
     partition: ""

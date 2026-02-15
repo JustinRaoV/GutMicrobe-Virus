@@ -3,6 +3,12 @@ rule viruslib_merge:
         expand(f"{RESULTS_ROOT}/{RUN_ID}/upstream/{{sample}}/11.busco_filter/contigs.fa", sample=SAMPLES)
     output:
         f"{WORK_ROOT}/{RUN_ID}/viruslib/1.merge/all_contigs.fa"
+    group: "project"
+    threads: 1
+    resources:
+        mem_mb=lambda wc, input, threads: mem_mb_for("gmv", size_mb=_safe_input_size_mb(input) or TOTAL_READS_MB),
+        runtime=lambda wc, input, threads: runtime_for("gmv", size_mb=_safe_input_size_mb(input) or TOTAL_READS_MB),
+        gmv=1
     shell:
         "PYTHONPATH={GMV_PYTHONPATH} python -m gmv.workflow.steps viruslib-merge --inputs {input} --out {output}"
 
@@ -13,8 +19,11 @@ rule viruslib_dedup:
     output:
         fasta=f"{RESULTS_ROOT}/{RUN_ID}/viruslib/viruslib_nr.fa",
         clusters=f"{RESULTS_ROOT}/{RUN_ID}/viruslib/clusters.tsv"
+    group: "project"
     threads: threads_for("vclust")
     resources:
+        mem_mb=lambda wc, input, threads: mem_mb_for("vclust", size_mb=_safe_input_size_mb(input) or TOTAL_READS_MB),
+        runtime=lambda wc, input, threads: runtime_for("vclust", size_mb=_safe_input_size_mb(input) or TOTAL_READS_MB),
         vclust=1
     params:
         workdir=f"{WORK_ROOT}/{RUN_ID}/viruslib/2.vclust/_tmp",
@@ -38,8 +47,11 @@ if TOOLS.get("phabox2", False):
             f"{RESULTS_ROOT}/{RUN_ID}/viruslib/viruslib_nr.fa"
         output:
             f"{RESULTS_ROOT}/{RUN_ID}/viruslib/phabox2/summary.tsv"
+        group: "project"
         threads: threads_for("phabox2")
         resources:
+            mem_mb=lambda wc, input, threads: mem_mb_for("phabox2", size_mb=_safe_input_size_mb(input) or TOTAL_READS_MB),
+            runtime=lambda wc, input, threads: runtime_for("phabox2", size_mb=_safe_input_size_mb(input) or TOTAL_READS_MB),
             phabox2=1
         params:
             out_dir=f"{RESULTS_ROOT}/{RUN_ID}/viruslib/phabox2",

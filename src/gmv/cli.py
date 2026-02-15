@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
+from gmv.agent.harvest import harvest_resources
 from gmv.agent.policy_engine import PolicyEngine
 from gmv.agent.replay import replay_decisions
 from gmv.config_schema import ConfigValidationError, load_pipeline_config
@@ -62,6 +63,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         profile=profile,
         dry_run=args.dry_run,
         cores=args.cores,
+        stage=args.stage,
     )
 
 
@@ -90,6 +92,14 @@ def cmd_agent_replay(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_agent_harvest(args: argparse.Namespace) -> int:
+    config = load_pipeline_config(args.config)
+    run_id = args.run_id or config["execution"]["run_id"]
+    out_file = harvest_resources(config=config, run_id=run_id, snakemake_log=args.snakemake_log)
+    print(out_file)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="gmv", description="GutMicrobeVirus v2 unified CLI")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -107,6 +117,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--config", default="config/pipeline.yaml")
     p.add_argument("--profile", default=None)
     p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--stage", choices=["upstream", "project", "all"], default="all", help="执行阶段：上游/项目级/全链路")
     p.add_argument("--cores", type=int, default=None)
     p.set_defaults(func=cmd_run)
 
@@ -123,6 +134,12 @@ def build_parser() -> argparse.ArgumentParser:
     rp.add_argument("--retry-limit", type=int, default=2)
     rp.add_argument("--low-yield-threshold", type=int, default=5)
     rp.set_defaults(func=cmd_agent_replay)
+
+    hv = agent_sub.add_parser("harvest", help="从历史运行/SLURM 统计生成资源 overrides 建议（可选）")
+    hv.add_argument("--config", default="config/pipeline.yaml")
+    hv.add_argument("--run-id", default=None)
+    hv.add_argument("--snakemake-log", default=None, help="可选：显式指定 snakemake log 文件")
+    hv.set_defaults(func=cmd_agent_harvest)
 
     return parser
 

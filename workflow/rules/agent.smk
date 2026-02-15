@@ -5,6 +5,12 @@ rule agent_decision_log:
         expand(f"{RESULTS_ROOT}/{RUN_ID}/downstream/{{method}}/abundance.tsv", method=DOWNSTREAM_METHODS)
     output:
         f"{RESULTS_ROOT}/{RUN_ID}/agent/decisions.jsonl"
+    group: "project"
+    threads: 1
+    resources:
+        mem_mb=lambda wc, input, threads: mem_mb_for("gmv", size_mb=TOTAL_READS_MB),
+        runtime=lambda wc, input, threads: runtime_for("gmv", size_mb=TOTAL_READS_MB),
+        gmv=1
     params:
         steps="preprocess,host_removal,assembly,vsearch,detect,combine,checkv,high_quality,busco_filter,viruslib,downstream"
     shell:

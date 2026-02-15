@@ -1,4 +1,6 @@
 import csv
+import math
+import sys
 from pathlib import Path
 import yaml
 
@@ -24,6 +26,13 @@ CONTAINER_RUNTIME = str(config.get("container_runtime", EXEC.get("container_runt
 GMV_PYTHONPATH = str((REPO_ROOT / "src").resolve())
 WORK_ROOT = str(EXEC.get("work_dir", "work"))
 RESULTS_ROOT = str(EXEC.get("results_dir", "results"))
+
+if GMV_PYTHONPATH not in sys.path:
+    sys.path.insert(0, GMV_PYTHONPATH)
+
+from gmv.workflow.resources import estimate_tool_resources  # noqa: E402
+
+ESTIMATION_CFG = config.get("resources", {}).get("estimation", {}) or {}
 
 
 def _resolve_from(base: Path, value: str) -> Path:
@@ -56,6 +65,48 @@ with open(sample_sheet, "r", encoding="utf-8") as fh:
 SAMPLES = sorted(SAMPLE_META)
 if not SAMPLES:
     raise ValueError("sample_sheet 中没有样本")
+
+def _safe_path_size_mb(p: str) -> float:
+    try:
+        if not p:
+            return 0.0
+        st = Path(p).expanduser().stat()
+        return float(st.st_size) / (1024.0 * 1024.0)
+    except OSError:
+        return 0.0
+
+
+RAW_INPUT_MB = {s: (_safe_path_size_mb(raw_input1(s)) + _safe_path_size_mb(raw_input2(s))) for s in SAMPLES}
+TOTAL_READS_MB = float(sum(RAW_INPUT_MB.values()))
+
+
+def _safe_input_size_mb(inp) -> float:
+    """Best-effort input size in MB. Never throws (dry-run friendly)."""
+    try:
+        size = float(getattr(inp, "size_mb"))
+        if math.isfinite(size):
+            return max(0.0, size)
+    except Exception:
+        pass
+
+    files: list[str] = []
+    if isinstance(inp, str):
+        files = [inp]
+    else:
+        try:
+            files = [str(x) for x in inp]
+        except Exception:
+            files = []
+
+    return float(sum(_safe_path_size_mb(fp) for fp in files))
+
+
+def mem_mb_for(tool: str, *, size_mb: float) -> int:
+    return int(estimate_tool_resources(tool, size_mb=size_mb, estimation_cfg=ESTIMATION_CFG)[0])
+
+
+def runtime_for(tool: str, *, size_mb: float) -> int:
+    return int(estimate_tool_resources(tool, size_mb=size_mb, estimation_cfg=ESTIMATION_CFG)[1])
 
 
 def _bind_dir(p: Path) -> str:

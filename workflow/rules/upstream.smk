@@ -7,6 +7,8 @@ rule preprocess:
         r2=f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/1.trimmed/{{sample}}_R2.fastq"
     threads: threads_for("fastp")
     resources:
+        mem_mb=lambda wc, input, threads: mem_mb_for("fastp", size_mb=RAW_INPUT_MB.get(wc.sample, 0.0)),
+        runtime=lambda wc, input, threads: runtime_for("fastp", size_mb=RAW_INPUT_MB.get(wc.sample, 0.0)),
         fastp=1
     params:
         fastp_cmd=tool_cmd("fastp"),
@@ -29,6 +31,8 @@ rule host_removal:
         r2=f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/2.host_removed/{{sample}}_R2.fastq"
     threads: threads_for("bowtie2")
     resources:
+        mem_mb=lambda wc, input, threads: mem_mb_for("bowtie2", size_mb=RAW_INPUT_MB.get(wc.sample, 0.0)),
+        runtime=lambda wc, input, threads: runtime_for("bowtie2", size_mb=RAW_INPUT_MB.get(wc.sample, 0.0)),
         bowtie2=1
     params:
         host=lambda wc: host_name(wc.sample),
@@ -57,6 +61,8 @@ rule assembly:
         out=f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/3.assembly/final.contigs.fa"
     threads: threads_for("megahit")
     resources:
+        mem_mb=lambda wc, input, threads: mem_mb_for("megahit", size_mb=RAW_INPUT_MB.get(wc.sample, 0.0)),
+        runtime=lambda wc, input, threads: runtime_for("megahit", size_mb=RAW_INPUT_MB.get(wc.sample, 0.0)),
         megahit=1
     params:
         mode=lambda wc: sample_mode(wc.sample),
@@ -79,6 +85,8 @@ rule vsearch:
         f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/4.vsearch/contigs.fa"
     threads: threads_for("vsearch")
     resources:
+        mem_mb=lambda wc, input, threads: mem_mb_for("vsearch", size_mb=_safe_input_size_mb(input) or RAW_INPUT_MB.get(wc.sample, 0.0)),
+        runtime=lambda wc, input, threads: runtime_for("vsearch", size_mb=_safe_input_size_mb(input) or RAW_INPUT_MB.get(wc.sample, 0.0)),
         vsearch=1
     params:
         vsearch_cmd=tool_cmd("vsearch"),
@@ -99,6 +107,8 @@ if TOOLS.get("virsorter", False):
             f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/5.virsorter/contigs.fa"
         threads: threads_for("virsorter")
         resources:
+            mem_mb=lambda wc, input, threads: mem_mb_for("virsorter", size_mb=_safe_input_size_mb(input) or RAW_INPUT_MB.get(wc.sample, 0.0)),
+            runtime=lambda wc, input, threads: runtime_for("virsorter", size_mb=_safe_input_size_mb(input) or RAW_INPUT_MB.get(wc.sample, 0.0)),
             virsorter=1
         params:
             db=str(Path(DB["virsorter"]).resolve()),
@@ -119,6 +129,8 @@ if TOOLS.get("genomad", False):
             f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/6.genomad/contigs.fa"
         threads: threads_for("genomad")
         resources:
+            mem_mb=lambda wc, input, threads: mem_mb_for("genomad", size_mb=_safe_input_size_mb(input) or RAW_INPUT_MB.get(wc.sample, 0.0)),
+            runtime=lambda wc, input, threads: runtime_for("genomad", size_mb=_safe_input_size_mb(input) or RAW_INPUT_MB.get(wc.sample, 0.0)),
             genomad=1
         params:
             db=str(Path(DB["genomad"]).resolve()),
@@ -137,6 +149,11 @@ rule combine:
         lambda wc: detect_outputs(wc.sample)
     output:
         f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/7.combination/contigs.fa"
+    threads: 1
+    resources:
+        mem_mb=lambda wc, input, threads: mem_mb_for("gmv", size_mb=_safe_input_size_mb(input) or RAW_INPUT_MB.get(wc.sample, 0.0)),
+        runtime=lambda wc, input, threads: runtime_for("gmv", size_mb=_safe_input_size_mb(input) or RAW_INPUT_MB.get(wc.sample, 0.0)),
+        gmv=1
     shell:
         "PYTHONPATH={GMV_PYTHONPATH} python -m gmv.workflow.steps combine --inputs {input} --out {output}"
 
@@ -149,6 +166,8 @@ rule checkv:
         contigs=f"{RESULTS_ROOT}/{RUN_ID}/upstream/{{sample}}/8.checkv/contigs.fa"
     threads: threads_for("checkv")
     resources:
+        mem_mb=lambda wc, input, threads: mem_mb_for("checkv", size_mb=_safe_input_size_mb(input) or RAW_INPUT_MB.get(wc.sample, 0.0)),
+        runtime=lambda wc, input, threads: runtime_for("checkv", size_mb=_safe_input_size_mb(input) or RAW_INPUT_MB.get(wc.sample, 0.0)),
         checkv=1
     params:
         out_dir=lambda wc: f"{RESULTS_ROOT}/{RUN_ID}/upstream/{wc.sample}/8.checkv",
@@ -168,6 +187,11 @@ rule high_quality:
         summary=f"{RESULTS_ROOT}/{RUN_ID}/upstream/{{sample}}/8.checkv/quality_summary.tsv"
     output:
         f"{RESULTS_ROOT}/{RUN_ID}/upstream/{{sample}}/9.high_quality/contigs.fa"
+    threads: 1
+    resources:
+        mem_mb=lambda wc, input, threads: mem_mb_for("gmv", size_mb=_safe_input_size_mb(input) or RAW_INPUT_MB.get(wc.sample, 0.0)),
+        runtime=lambda wc, input, threads: runtime_for("gmv", size_mb=_safe_input_size_mb(input) or RAW_INPUT_MB.get(wc.sample, 0.0)),
+        gmv=1
     shell:
         "PYTHONPATH={GMV_PYTHONPATH} python -m gmv.workflow.steps high-quality --input {input.fasta} --summary {input.summary} --out {output}"
 
@@ -179,6 +203,8 @@ rule busco_filter:
         f"{RESULTS_ROOT}/{RUN_ID}/upstream/{{sample}}/11.busco_filter/contigs.fa"
     threads: threads_for("busco")
     resources:
+        mem_mb=lambda wc, input, threads: mem_mb_for("busco", size_mb=_safe_input_size_mb(input) or RAW_INPUT_MB.get(wc.sample, 0.0)),
+        runtime=lambda wc, input, threads: runtime_for("busco", size_mb=_safe_input_size_mb(input) or RAW_INPUT_MB.get(wc.sample, 0.0)),
         busco=1
     params:
         sample=lambda wc: wc.sample,

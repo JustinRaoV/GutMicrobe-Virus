@@ -71,6 +71,10 @@ def _apply_defaults(config: Dict[str, Any]) -> Dict[str, Any]:
     cfg["resources"].setdefault("default_threads", 8)
     cfg["resources"].setdefault("threads", {})
     cfg["resources"].setdefault("limits", {})
+    cfg["resources"].setdefault("estimation", {})
+    cfg["resources"]["estimation"].setdefault("enabled", True)
+    cfg["resources"]["estimation"].setdefault("fudge", 1.2)
+    cfg["resources"]["estimation"].setdefault("overrides", {})
     cfg["resources"].setdefault("slurm", {})
     cfg["resources"]["slurm"].setdefault("account", "")
     cfg["resources"]["slurm"].setdefault("partition", "")
@@ -193,6 +197,37 @@ def load_pipeline_config(config_path: str | Path) -> Dict[str, Any]:
             raise ConfigValidationError(f"resources.limits.{k} 必须是整数: {v}") from exc
         if n <= 0:
             raise ConfigValidationError(f"resources.limits.{k} 必须 > 0: {n}")
+
+    est_cfg = config.get("resources", {}).get("estimation", {})
+    if not isinstance(est_cfg, dict):
+        raise ConfigValidationError("resources.estimation 必须是字典")
+    enabled = est_cfg.get("enabled", True)
+    if not isinstance(enabled, bool):
+        raise ConfigValidationError("resources.estimation.enabled 必须是 bool")
+    fudge = est_cfg.get("fudge", 1.2)
+    try:
+        fudge_f = float(fudge)
+    except (TypeError, ValueError) as exc:
+        raise ConfigValidationError("resources.estimation.fudge 必须是数字") from exc
+    if fudge_f < 1.0:
+        raise ConfigValidationError("resources.estimation.fudge 必须 >= 1")
+
+    overrides = est_cfg.get("overrides", {}) or {}
+    if not isinstance(overrides, dict):
+        raise ConfigValidationError("resources.estimation.overrides 必须是字典（工具名->系数）")
+    allowed_keys = {"mem_mb_base", "mem_mb_per_gb", "runtime_base", "runtime_per_gb", "mem_mb_max", "runtime_max"}
+    for tool, ov in overrides.items():
+        if not isinstance(ov, dict):
+            raise ConfigValidationError(f"resources.estimation.overrides.{tool} 必须是字典")
+        for k, v in ov.items():
+            if k not in allowed_keys:
+                raise ConfigValidationError(f"resources.estimation.overrides.{tool}.{k} 不支持（允许: {sorted(allowed_keys)}）")
+            try:
+                n = float(v)
+            except (TypeError, ValueError) as exc:
+                raise ConfigValidationError(f"resources.estimation.overrides.{tool}.{k} 必须是数字") from exc
+            if n < 0:
+                raise ConfigValidationError(f"resources.estimation.overrides.{tool}.{k} 必须 >= 0")
 
     normalized = deepcopy(config)
     normalized["_meta"] = {

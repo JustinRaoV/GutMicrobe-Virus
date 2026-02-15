@@ -3,8 +3,11 @@ rule downstream_quant:
         viruslib=f"{RESULTS_ROOT}/{RUN_ID}/viruslib/viruslib_nr.fa"
     output:
         f"{RESULTS_ROOT}/{RUN_ID}/downstream/{{method}}/abundance.tsv"
+    group: "project"
     threads: threads_for("coverm")
     resources:
+        mem_mb=lambda wc, input, threads: mem_mb_for("coverm", size_mb=TOTAL_READS_MB),
+        runtime=lambda wc, input, threads: runtime_for("coverm", size_mb=TOTAL_READS_MB),
         coverm=1
     params:
         sample_sheet=str(sample_sheet),

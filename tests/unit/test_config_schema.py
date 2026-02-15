@@ -17,6 +17,10 @@ class ConfigSchemaTests(unittest.TestCase):
         self.assertEqual(config["execution"]["run_id"], "test-run")
         self.assertTrue(config["execution"]["mock_mode"])
         self.assertIn("virsorter", config["tools"]["enabled"])
+        # defaults
+        self.assertIn("estimation", config["resources"])
+        self.assertTrue(config["resources"]["estimation"]["enabled"])
+        self.assertGreaterEqual(config["resources"]["estimation"]["fudge"], 1.0)
 
     def test_missing_required_section_raises(self):
         bad_cfg = ROOT / "tests" / "fixtures" / "minimal" / "config" / "bad_missing_execution.yaml"
@@ -68,6 +72,87 @@ database:
         )
         (ROOT / "tests" / "fixtures" / "minimal" / "config" / "bad_containers.yaml").write_text(
             "images: {}\n", encoding="utf-8"
+        )
+        with self.assertRaises(ConfigValidationError):
+            load_pipeline_config(bad_cfg)
+
+    def test_estimation_fudge_must_be_ge_1(self):
+        bad_cfg = ROOT / "tests" / "fixtures" / "minimal" / "config" / "bad_estimation_fudge.yaml"
+        bad_cfg.write_text(
+            """
+execution:
+  run_id: x
+  profile: local
+  raw_dir: ../raw
+  work_dir: work
+  cache_dir: cache
+  results_dir: results
+  reports_dir: reports
+  sample_sheet: ../raw/samples.tsv
+  use_singularity: true
+  offline: true
+  mock_mode: true
+containers:
+  mapping_file: containers.yaml
+tools:
+  enabled: {}
+agent:
+  enabled: true
+reporting:
+  language: zh
+  figure_language: en
+resources:
+  default_threads: 1
+  estimation:
+    enabled: true
+    fudge: 0.9
+database:
+  checkv: ../db/checkv
+  busco: ../db/busco
+""".strip()
+            + "\n",
+            encoding="utf-8",
+        )
+        with self.assertRaises(ConfigValidationError):
+            load_pipeline_config(bad_cfg)
+
+    def test_estimation_overrides_must_be_mapping(self):
+        bad_cfg = ROOT / "tests" / "fixtures" / "minimal" / "config" / "bad_estimation_overrides.yaml"
+        bad_cfg.write_text(
+            """
+execution:
+  run_id: x
+  profile: local
+  raw_dir: ../raw
+  work_dir: work
+  cache_dir: cache
+  results_dir: results
+  reports_dir: reports
+  sample_sheet: ../raw/samples.tsv
+  use_singularity: true
+  offline: true
+  mock_mode: true
+containers:
+  mapping_file: containers.yaml
+tools:
+  enabled: {}
+agent:
+  enabled: true
+reporting:
+  language: zh
+  figure_language: en
+resources:
+  default_threads: 1
+  estimation:
+    enabled: true
+    fudge: 1.2
+    overrides: []
+database:
+  checkv: ../db/checkv
+  busco: ../db/busco
+""".strip()
+            + "\n",
+            encoding="utf-8",
         )
         with self.assertRaises(ConfigValidationError):
             load_pipeline_config(bad_cfg)

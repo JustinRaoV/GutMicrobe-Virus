@@ -7,7 +7,14 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 
-def run_snakemake(config: Dict[str, Any], config_path: str, profile: str, dry_run: bool = False, cores: Optional[int] = None) -> int:
+def run_snakemake(
+    config: Dict[str, Any],
+    config_path: str,
+    profile: str,
+    dry_run: bool = False,
+    cores: Optional[int] = None,
+    stage: str = "all",
+) -> int:
     snake = shutil.which("snakemake")
     if not snake:
         print("错误: 未找到 snakemake 命令，请在服务器环境安装 Snakemake。")
@@ -48,6 +55,20 @@ def run_snakemake(config: Dict[str, Any], config_path: str, profile: str, dry_ru
         str(profile_dir),
     ]
 
+    if stage == "upstream":
+        cmd.extend(["--until", "busco_filter"])
+    elif stage == "project":
+        run_id = config.get("execution", {}).get("run_id", "default-run")
+        results_dir = Path(config.get("execution", {}).get("results_dir", "results"))
+        target = str(results_dir / run_id / "agent" / "decisions.jsonl")
+        allowed_rules = ["viruslib_merge", "viruslib_dedup", "downstream_quant", "agent_decision_log"]
+        if bool(config.get("tools", {}).get("enabled", {}).get("phabox2", False)):
+            allowed_rules.append("viruslib_annotation")
+        cmd.append(target)
+        cmd.extend(["--allowed-rules", *allowed_rules])
+    elif stage != "all":
+        raise ValueError(f"unsupported stage: {stage}")
+
     if resources_pairs:
         cmd.extend(["--resources", *resources_pairs])
 
@@ -56,5 +77,5 @@ def run_snakemake(config: Dict[str, Any], config_path: str, profile: str, dry_ru
     if cores is not None:
         cmd.extend(["--cores", str(cores)])
 
-    result = subprocess.run(cmd, check=False)
+    result = subprocess.run(cmd, check=False, cwd=repo_root)
     return int(result.returncode)
