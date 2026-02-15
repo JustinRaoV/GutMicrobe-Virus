@@ -16,6 +16,7 @@ RUN_ID = EXEC["run_id"]
 TOOLS = config.get("tools", {}).get("enabled", {})
 MOCK_MODE = bool(EXEC.get("mock_mode", False))
 DEFAULT_THREADS = int(config.get("resources", {}).get("default_threads", 1))
+THREADS_MAP = config.get("resources", {}).get("threads", {}) or {}
 
 CONFIG_DIR = Path(config.get("config_dir", ".")).expanduser().resolve()
 REPO_ROOT = Path(workflow.basedir).resolve().parent
@@ -112,6 +113,14 @@ def _bind_args() -> str:
 
 
 BIND_ARGS = _bind_args()
+
+
+def threads_for(tool: str, default: int = DEFAULT_THREADS) -> int:
+    try:
+        v = THREADS_MAP.get(tool, default)
+        return max(1, int(v))
+    except Exception:
+        return int(default)
 
 DOWNSTREAM_METHODS = []
 if TOOLS.get("coverm", False):

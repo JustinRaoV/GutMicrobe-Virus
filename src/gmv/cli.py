@@ -56,7 +56,13 @@ def cmd_profile(args: argparse.Namespace) -> int:
 def cmd_run(args: argparse.Namespace) -> int:
     config = load_pipeline_config(args.config)
     profile = args.profile or config["execution"]["profile"]
-    return run_snakemake(config_path=args.config, profile=profile, dry_run=args.dry_run, cores=args.cores)
+    return run_snakemake(
+        config=config,
+        config_path=args.config,
+        profile=profile,
+        dry_run=args.dry_run,
+        cores=args.cores,
+    )
 
 
 def cmd_report(args: argparse.Namespace) -> int:

@@ -44,6 +44,23 @@ reporting:
 
 resources:
   default_threads: 8
+  # Fine-grained per-tool threads for better parallel scheduling.
+  # When not set, rules fall back to `resources.default_threads`.
+  threads:
+    fastp: 4
+    bowtie2: 8
+    megahit: 8
+    vsearch: 2
+    virsorter: 8
+    genomad: 8
+    checkv: 4
+    busco: 8
+    vclust: 8
+    coverm: 8
+  # Optional concurrency limits (Snakemake --resources). Each tool consumes 1 unit.
+  limits:
+    checkv: 1
+    virsorter: 1
   slurm:
     account: ""
     partition: ""
@@ -58,4 +75,3 @@ database:
   bowtie2_index: /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/db/bowtie2_index
   phabox2: /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/db/phabox_db_v2_1
   blastn: /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/db/blastn_database
-

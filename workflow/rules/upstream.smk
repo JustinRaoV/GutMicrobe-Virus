@@ -5,7 +5,9 @@ rule preprocess:
     output:
         r1=f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/1.trimmed/{{sample}}_R1.fastq",
         r2=f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/1.trimmed/{{sample}}_R2.fastq"
-    threads: DEFAULT_THREADS
+    threads: threads_for("fastp")
+    resources:
+        fastp=1
     params:
         fastp_cmd=tool_cmd("fastp"),
         fastp_params=config.get("tools", {}).get("params", {}).get("fastp", "")
@@ -25,7 +27,9 @@ rule host_removal:
     output:
         r1=f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/2.host_removed/{{sample}}_R1.fastq",
         r2=f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/2.host_removed/{{sample}}_R2.fastq"
-    threads: DEFAULT_THREADS
+    threads: threads_for("bowtie2")
+    resources:
+        bowtie2=1
     params:
         host=lambda wc: host_name(wc.sample),
         host_index=lambda wc: (
@@ -51,7 +55,9 @@ rule assembly:
         input2=lambda wc: raw_input2(wc.sample) if sample_mode(wc.sample) == "contigs" else f"{WORK_ROOT}/{RUN_ID}/upstream/{wc.sample}/2.host_removed/{wc.sample}_R2.fastq"
     output:
         out=f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/3.assembly/final.contigs.fa"
-    threads: DEFAULT_THREADS
+    threads: threads_for("megahit")
+    resources:
+        megahit=1
     params:
         mode=lambda wc: sample_mode(wc.sample),
         sample=lambda wc: wc.sample,
@@ -71,6 +77,9 @@ rule vsearch:
         f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/3.assembly/final.contigs.fa"
     output:
         f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/4.vsearch/contigs.fa"
+    threads: threads_for("vsearch")
+    resources:
+        vsearch=1
     params:
         vsearch_cmd=tool_cmd("vsearch"),
         vsearch_min_len=config.get("tools", {}).get("params", {}).get("vsearch_min_len", 1500)
@@ -88,7 +97,9 @@ if TOOLS.get("virsorter", False):
             f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/4.vsearch/contigs.fa"
         output:
             f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/5.virsorter/contigs.fa"
-        threads: DEFAULT_THREADS
+        threads: threads_for("virsorter")
+        resources:
+            virsorter=1
         params:
             db=str(Path(DB["virsorter"]).resolve()),
             wd=lambda wc: f"{WORK_ROOT}/{RUN_ID}/upstream/{wc.sample}/5.virsorter/_tmp",
@@ -106,7 +117,9 @@ if TOOLS.get("genomad", False):
             f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/4.vsearch/contigs.fa"
         output:
             f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/6.genomad/contigs.fa"
-        threads: DEFAULT_THREADS
+        threads: threads_for("genomad")
+        resources:
+            genomad=1
         params:
             db=str(Path(DB["genomad"]).resolve()),
             wd=lambda wc: f"{WORK_ROOT}/{RUN_ID}/upstream/{wc.sample}/6.genomad/_tmp",
@@ -134,7 +147,9 @@ rule checkv:
     output:
         summary=f"{RESULTS_ROOT}/{RUN_ID}/upstream/{{sample}}/8.checkv/quality_summary.tsv",
         contigs=f"{RESULTS_ROOT}/{RUN_ID}/upstream/{{sample}}/8.checkv/contigs.fa"
-    threads: DEFAULT_THREADS
+    threads: threads_for("checkv")
+    resources:
+        checkv=1
     params:
         out_dir=lambda wc: f"{RESULTS_ROOT}/{RUN_ID}/upstream/{wc.sample}/8.checkv",
         db=str(Path(DB["checkv"]).resolve()),
@@ -162,7 +177,9 @@ rule busco_filter:
         f"{RESULTS_ROOT}/{RUN_ID}/upstream/{{sample}}/9.high_quality/contigs.fa"
     output:
         f"{RESULTS_ROOT}/{RUN_ID}/upstream/{{sample}}/11.busco_filter/contigs.fa"
-    threads: DEFAULT_THREADS
+    threads: threads_for("busco")
+    resources:
+        busco=1
     params:
         sample=lambda wc: wc.sample,
         busco_cmd=tool_cmd("busco"),

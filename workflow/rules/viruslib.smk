@@ -13,7 +13,9 @@ rule viruslib_dedup:
     output:
         fasta=f"{RESULTS_ROOT}/{RUN_ID}/viruslib/viruslib_nr.fa",
         clusters=f"{RESULTS_ROOT}/{RUN_ID}/viruslib/clusters.tsv"
-    threads: DEFAULT_THREADS
+    threads: threads_for("vclust")
+    resources:
+        vclust=1
     params:
         workdir=f"{WORK_ROOT}/{RUN_ID}/viruslib/2.vclust/_tmp",
         vclust_cmd=tool_cmd("vclust"),
@@ -36,7 +38,9 @@ if TOOLS.get("phabox2", False):
             f"{RESULTS_ROOT}/{RUN_ID}/viruslib/viruslib_nr.fa"
         output:
             f"{RESULTS_ROOT}/{RUN_ID}/viruslib/phabox2/summary.tsv"
-        threads: DEFAULT_THREADS
+        threads: threads_for("phabox2")
+        resources:
+            phabox2=1
         params:
             out_dir=f"{RESULTS_ROOT}/{RUN_ID}/viruslib/phabox2",
             db=str(Path(DB["phabox2"]).resolve()),

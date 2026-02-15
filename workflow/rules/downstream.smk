@@ -3,7 +3,9 @@ rule downstream_quant:
         viruslib=f"{RESULTS_ROOT}/{RUN_ID}/viruslib/viruslib_nr.fa"
     output:
         f"{RESULTS_ROOT}/{RUN_ID}/downstream/{{method}}/abundance.tsv"
-    threads: DEFAULT_THREADS
+    threads: threads_for("coverm")
+    resources:
+        coverm=1
     params:
         sample_sheet=str(sample_sheet),
         coverm_cmd=tool_cmd("coverm"),

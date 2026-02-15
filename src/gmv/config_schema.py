@@ -69,6 +69,8 @@ def _apply_defaults(config: Dict[str, Any]) -> Dict[str, Any]:
 
     cfg.setdefault("resources", {})
     cfg["resources"].setdefault("default_threads", 8)
+    cfg["resources"].setdefault("threads", {})
+    cfg["resources"].setdefault("limits", {})
     cfg["resources"].setdefault("slurm", {})
     cfg["resources"]["slurm"].setdefault("account", "")
     cfg["resources"]["slurm"].setdefault("partition", "")
@@ -169,6 +171,28 @@ def load_pipeline_config(config_path: str | Path) -> Dict[str, Any]:
         resolved = _resolve(base, db_path)
         if not resolved.exists():
             raise ConfigValidationError(f"数据库路径不存在: {db_name} -> {resolved}")
+
+    threads_cfg = config.get("resources", {}).get("threads", {})
+    if not isinstance(threads_cfg, dict):
+        raise ConfigValidationError("resources.threads 必须是字典（工具名->线程数）")
+    for k, v in threads_cfg.items():
+        try:
+            n = int(v)
+        except (TypeError, ValueError) as exc:
+            raise ConfigValidationError(f"resources.threads.{k} 必须是整数: {v}") from exc
+        if n <= 0:
+            raise ConfigValidationError(f"resources.threads.{k} 必须 > 0: {n}")
+
+    limits_cfg = config.get("resources", {}).get("limits", {})
+    if not isinstance(limits_cfg, dict):
+        raise ConfigValidationError("resources.limits 必须是字典（资源名->上限）")
+    for k, v in limits_cfg.items():
+        try:
+            n = int(v)
+        except (TypeError, ValueError) as exc:
+            raise ConfigValidationError(f"resources.limits.{k} 必须是整数: {v}") from exc
+        if n <= 0:
+            raise ConfigValidationError(f"resources.limits.{k} 必须 > 0: {n}")
 
     normalized = deepcopy(config)
     normalized["_meta"] = {
