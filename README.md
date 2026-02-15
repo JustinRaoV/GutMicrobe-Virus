@@ -169,3 +169,4 @@ v2 为破坏式重构，不保留旧入口脚本兼容层。请参考：
 - `docs/SERVER_RUNBOOK.md`
 - `docs/MIGRATION_V1_TO_V2.md`
 - `docs/RELEASE_MILESTONES.md`
+- `docs/AGENT_CHAT.md`

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Sequence
 
 from gmv.agent.harvest import harvest_resources
+from gmv.agent.chat.session import run_chat
 from gmv.agent.policy_engine import PolicyEngine
 from gmv.agent.replay import replay_decisions
 from gmv.config_schema import ConfigValidationError, load_pipeline_config
@@ -100,6 +101,22 @@ def cmd_agent_harvest(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_chat(args: argparse.Namespace) -> int:
+    result = run_chat(
+        config_path=args.config,
+        message=args.message,
+        auto_approve=bool(args.auto_approve),
+        max_steps=int(args.max_steps),
+        log_dir=args.log_dir,
+        base_url=args.base_url,
+        model=args.model,
+        api_key_env=args.api_key_env,
+        llm_config=args.llm_config,
+    )
+    print(f"audit_log: {result.audit_log}")
+    return int(result.returncode)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="gmv", description="GutMicrobeVirus v2 unified CLI")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -126,6 +143,18 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--run-id", default=None)
     p.set_defaults(func=cmd_report)
 
+    p = sub.add_parser("chat", help="对话式 ChatOps：执行白名单本地/SLURM任务（OpenAI-Compatible）")
+    p.add_argument("--config", default="config/pipeline.yaml")
+    p.add_argument("--message", default=None, help="单条消息（非交互模式）；不传则进入 REPL")
+    p.add_argument("--auto-approve", action="store_true", help="允许执行高风险动作（默认需要确认）")
+    p.add_argument("--max-steps", type=int, default=8)
+    p.add_argument("--log-dir", default=None, help="会话审计日志目录（默认 results/<run_id>/agent/chat/）")
+    p.add_argument("--base-url", default=None)
+    p.add_argument("--model", default=None)
+    p.add_argument("--api-key-env", default=None)
+    p.add_argument("--llm-config", default=None)
+    p.set_defaults(func=cmd_chat)
+
     agent = sub.add_parser("agent", help="Agent 工具")
     agent_sub = agent.add_subparsers(dest="agent_command", required=True)
     rp = agent_sub.add_parser("replay", help="回放 signal 日志并输出决策")
@@ -140,6 +169,18 @@ def build_parser() -> argparse.ArgumentParser:
     hv.add_argument("--run-id", default=None)
     hv.add_argument("--snakemake-log", default=None, help="可选：显式指定 snakemake log 文件")
     hv.set_defaults(func=cmd_agent_harvest)
+
+    chat = agent_sub.add_parser("chat", help="对话式 ChatOps（同 `gmv chat`）")
+    chat.add_argument("--config", default="config/pipeline.yaml")
+    chat.add_argument("--message", default=None)
+    chat.add_argument("--auto-approve", action="store_true")
+    chat.add_argument("--max-steps", type=int, default=8)
+    chat.add_argument("--log-dir", default=None)
+    chat.add_argument("--base-url", default=None)
+    chat.add_argument("--model", default=None)
+    chat.add_argument("--api-key-env", default=None)
+    chat.add_argument("--llm-config", default=None)
+    chat.set_defaults(func=cmd_chat)
 
     return parser
 
