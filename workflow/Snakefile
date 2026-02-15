@@ -18,6 +18,8 @@ MOCK_MODE = bool(EXEC.get("mock_mode", False))
 DEFAULT_THREADS = int(config.get("resources", {}).get("default_threads", 1))
 
 CONFIG_DIR = Path(config.get("config_dir", ".")).expanduser().resolve()
+REPO_ROOT = Path(workflow.basedir).resolve().parent
+CONTAINER_RUNTIME = str(config.get("container_runtime", EXEC.get("container_runtime", "singularity")))
 WORK_ROOT = str(EXEC.get("work_dir", "work"))
 RESULTS_ROOT = str(EXEC.get("results_dir", "results"))
 
@@ -52,6 +54,63 @@ with open(sample_sheet, "r", encoding="utf-8") as fh:
 SAMPLES = sorted(SAMPLE_META)
 if not SAMPLES:
     raise ValueError("sample_sheet 中没有样本")
+
+
+def _bind_dir(p: Path) -> str:
+    p = p.expanduser().resolve()
+    if p.is_file():
+        p = p.parent
+    return str(p)
+
+
+def _auto_bind_paths() -> list[str]:
+    paths: set[str] = set()
+
+    # Always bind the repo root to keep relative work/results resolvable.
+    paths.add(_bind_dir(REPO_ROOT))
+    paths.add(_bind_dir(CONFIG_DIR))
+    paths.add(_bind_dir(sample_sheet.parent))
+
+    # Bind work/results roots (usually inside repo root).
+    paths.add(_bind_dir(_resolve_from(REPO_ROOT, WORK_ROOT)))
+    paths.add(_bind_dir(_resolve_from(REPO_ROOT, RESULTS_ROOT)))
+
+    # Bind DB roots.
+    for v in DB.values():
+        paths.add(_bind_dir(Path(v)))
+
+    # Bind input directories from sample sheet.
+    for row in SAMPLE_META.values():
+        for key in ("input1", "input2"):
+            v = (row.get(key) or "").strip()
+            if not v:
+                continue
+            p = Path(v).expanduser()
+            if not p.is_absolute():
+                p = (sample_sheet.parent / p).resolve()
+            paths.add(_bind_dir(p.parent))
+
+    return sorted(paths)
+
+
+def _bind_args() -> str:
+    user_binds = config.get("containers", {}).get("binds", []) or []
+    if not isinstance(user_binds, list):
+        user_binds = [str(user_binds)]
+    binds: list[str] = []
+    binds.extend([b for b in user_binds if str(b).strip()])
+    binds.extend(_auto_bind_paths())
+    # Keep order deterministic to reduce commandline churn.
+    uniq: list[str] = []
+    seen: set[str] = set()
+    for b in binds:
+        if b not in seen:
+            uniq.append(b)
+            seen.add(b)
+    return " ".join([f"-B {b}" for b in uniq]).strip()
+
+
+BIND_ARGS = _bind_args()
 
 DOWNSTREAM_METHODS = []
 if TOOLS.get("coverm", False):
@@ -108,7 +167,7 @@ def detect_outputs(sample):
 def tool_cmd(tool_name):
     image = IMAGES.get(tool_name, "")
     if EXEC.get("use_singularity", True) and image:
-        return f"singularity exec {image} {tool_name}"
+        return f"{CONTAINER_RUNTIME} exec {BIND_ARGS} {image} {tool_name}".strip()
     return tool_name
 
 
@@ -118,9 +177,15 @@ include: "rules/downstream.smk"
 include: "rules/agent.smk"
 
 
+ALL_TARGETS = []
+ALL_TARGETS += expand(f"{RESULTS_ROOT}/{RUN_ID}/upstream/{{sample}}/11.busco_filter/contigs.fa", sample=SAMPLES)
+ALL_TARGETS += [f"{RESULTS_ROOT}/{RUN_ID}/viruslib/viruslib_nr.fa"]
+ALL_TARGETS += expand(f"{RESULTS_ROOT}/{RUN_ID}/downstream/{{method}}/abundance.tsv", method=DOWNSTREAM_METHODS)
+ALL_TARGETS += [f"{RESULTS_ROOT}/{RUN_ID}/agent/decisions.jsonl"]
+if TOOLS.get("phabox2", False):
+    ALL_TARGETS += [f"{RESULTS_ROOT}/{RUN_ID}/viruslib/phabox2/summary.tsv"]
+
+
 rule all:
     input:
-        expand(f"{RESULTS_ROOT}/{RUN_ID}/upstream/{{sample}}/11.busco_filter/contigs.fa", sample=SAMPLES),
-        f"{RESULTS_ROOT}/{RUN_ID}/viruslib/viruslib_nr.fa",
-        expand(f"{RESULTS_ROOT}/{RUN_ID}/downstream/{{method}}/abundance.tsv", method=DOWNSTREAM_METHODS),
-        f"{RESULTS_ROOT}/{RUN_ID}/agent/decisions.jsonl",
+        ALL_TARGETS

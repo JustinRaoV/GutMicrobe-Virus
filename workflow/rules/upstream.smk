@@ -28,7 +28,11 @@ rule host_removal:
     threads: DEFAULT_THREADS
     params:
         host=lambda wc: host_name(wc.sample),
-        host_index=lambda wc: str(Path(DB["bowtie2_index"]).resolve() / host_name(wc.sample) / host_name(wc.sample)),
+        host_index=lambda wc: (
+            str(Path(DB["bowtie2_index"]).resolve() / host_name(wc.sample) / host_name(wc.sample))
+            if host_name(wc.sample)
+            else ""
+        ),
         prefix=lambda wc: f"{WORK_ROOT}/{RUN_ID}/upstream/{wc.sample}/2.host_removed/{wc.sample}",
         bowtie2_cmd=tool_cmd("bowtie2")
     shell:
@@ -158,7 +162,17 @@ rule busco_filter:
         f"{RESULTS_ROOT}/{RUN_ID}/upstream/{{sample}}/9.high_quality/contigs.fa"
     output:
         f"{RESULTS_ROOT}/{RUN_ID}/upstream/{{sample}}/11.busco_filter/contigs.fa"
+    threads: DEFAULT_THREADS
     params:
-        sample=lambda wc: wc.sample
+        sample=lambda wc: wc.sample,
+        busco_cmd=tool_cmd("busco"),
+        busco_db=str(Path(DB["busco"]).resolve()),
+        ratio_threshold=config.get("tools", {}).get("params", {}).get("busco_ratio_threshold", 0.05),
     shell:
-        "PYTHONPATH={workflow.basedir}/src python -m gmv.workflow.steps busco --input {input} --out {output} --sample {params.sample}"
+        (
+            "PYTHONPATH={workflow.basedir}/src python -m gmv.workflow.steps busco "
+            "--input {input} --out {output} --sample {params.sample} --threads {threads} "
+            "--busco-cmd \"{params.busco_cmd}\" --busco-db \"{params.busco_db}\" "
+            "--ratio-threshold {params.ratio_threshold} "
+            + ("--mock" if MOCK_MODE else "")
+        )

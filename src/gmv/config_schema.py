@@ -1,6 +1,7 @@
 """Configuration schema and validation for GutMicrobeVirus v2."""
 from __future__ import annotations
 
+import csv
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, Dict, Iterable
@@ -103,15 +104,68 @@ def load_pipeline_config(config_path: str | Path) -> Dict[str, Any]:
 
     use_singularity = bool(config["execution"].get("use_singularity", True))
     if use_singularity:
-        for tool, enabled in config["tools"].get("enabled", {}).items():
-            if enabled and tool not in images and tool != "bowtie2_samtools":
-                raise ConfigValidationError(f"启用工具 {tool} 缺少镜像映射")
-        if config["tools"].get("enabled", {}).get("bowtie2_samtools"):
-            for required in ("bowtie2", "samtools"):
-                if required not in images:
-                    raise ConfigValidationError("bowtie2_samtools 启用时必须映射 bowtie2 和 samtools")
+        enabled = config["tools"].get("enabled", {}) or {}
 
-    for db_name, db_path in config.get("database", {}).items():
+        # Determine whether host-removal is requested by any sample.
+        has_host = False
+        with sample_sheet.open("r", encoding="utf-8") as fh:
+            reader = csv.DictReader(fh, delimiter="\t")
+            for row in reader:
+                if (row.get("host") or "").strip():
+                    has_host = True
+                    break
+
+        required_images = {
+            # Core steps (always in the DAG)
+            "fastp",
+            "megahit",
+            "vsearch",
+            "checkv",
+            "busco",
+            "vclust",
+            "coverm",
+        }
+        if bool(enabled.get("virsorter", False)):
+            required_images.add("virsorter")
+        if bool(enabled.get("genomad", False)):
+            required_images.add("genomad")
+        if bool(enabled.get("phabox2", False)):
+            required_images.add("phabox2")
+        if has_host or bool(enabled.get("bowtie2_samtools", False)):
+            required_images.add("bowtie2")
+        if bool(enabled.get("bowtie2_samtools", False)):
+            required_images.add("samtools")
+
+        missing = [t for t in sorted(required_images) if t not in images]
+        if missing:
+            raise ConfigValidationError(f"containers.yaml 缺少必要镜像映射: {', '.join(missing)}")
+
+    # Database requirements depend on enabled tools / sample sheet.
+    enabled = config["tools"].get("enabled", {}) or {}
+    required_dbs = {"checkv", "busco"}
+    if bool(enabled.get("virsorter", False)):
+        required_dbs.add("virsorter")
+    if bool(enabled.get("genomad", False)):
+        required_dbs.add("genomad")
+    if bool(enabled.get("phabox2", False)):
+        required_dbs.add("phabox2")
+    # If any sample requests host-removal, bowtie2_index must exist.
+    has_host = False
+    with sample_sheet.open("r", encoding="utf-8") as fh:
+        reader = csv.DictReader(fh, delimiter="\t")
+        for row in reader:
+            if (row.get("host") or "").strip():
+                has_host = True
+                break
+    if has_host:
+        required_dbs.add("bowtie2_index")
+
+    db_cfg = config.get("database", {}) or {}
+    missing_db = [k for k in sorted(required_dbs) if k not in db_cfg]
+    if missing_db:
+        raise ConfigValidationError(f"缺少必要数据库配置: {', '.join(missing_db)}")
+
+    for db_name, db_path in db_cfg.items():
         resolved = _resolve(base, db_path)
         if not resolved.exists():
             raise ConfigValidationError(f"数据库路径不存在: {db_name} -> {resolved}")

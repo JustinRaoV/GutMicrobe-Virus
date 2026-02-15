@@ -1,0 +1,61 @@
+execution:
+  run_id: cfff-smoke
+  profile: local
+  raw_dir: raw
+  work_dir: work
+  cache_dir: cache
+  results_dir: results
+  reports_dir: reports
+  sample_sheet: samples.tsv
+  use_singularity: true
+  offline: true
+  mock_mode: false
+
+containers:
+  mapping_file: containers.yaml
+  # Optional extra binds. Usually not needed unless your site runs Singularity with strict containment.
+  binds: []
+
+tools:
+  enabled:
+    virsorter: true
+    genomad: true
+    coverm: true
+    bowtie2_samtools: false
+    vclust: true
+    phabox2: false
+  params:
+    vsearch_min_len: 1500
+    busco_ratio_threshold: 0.05
+    coverm: "--min-read-percent-identity 95 --min-read-aligned-percent 75 --output-format dense"
+    vclust_min_ident: 0.95
+    vclust_ani: 0.95
+    vclust_qcov: 0.85
+
+agent:
+  enabled: true
+  auto_apply_risk_levels: ["low"]
+  retry_limit: 2
+  low_yield_threshold: 5
+
+reporting:
+  language: zh
+  figure_language: en
+
+resources:
+  default_threads: 8
+  slurm:
+    account: ""
+    partition: ""
+    time: "24:00:00"
+    mem_mb: 64000
+
+database:
+  checkv: /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/db/checkv
+  virsorter: /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/db/db
+  genomad: /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/db/genomad
+  busco: /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/db/bacteria_odb12
+  bowtie2_index: /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/db/bowtie2_index
+  phabox2: /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/db/phabox_db_v2_1
+  blastn: /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/db/blastn_database
+

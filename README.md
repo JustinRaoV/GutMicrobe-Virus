@@ -58,6 +58,16 @@
 2. 修改 `config/containers.yaml`：
 - 各工具镜像路径
 
+### CFFF 服务器示例（直跑）
+
+如果你的服务器路径与示例一致（`/cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/...`），可直接使用示例配置（默认关闭 `phabox2` 以加快 smoke）：
+
+```bash
+PYTHONPATH=src python -m gmv.cli validate --config config/examples/cfff/pipeline.local.yaml
+PYTHONPATH=src python -m gmv.cli run --config config/examples/cfff/pipeline.local.yaml --profile local --cores 8
+PYTHONPATH=src python -m gmv.cli report --config config/examples/cfff/pipeline.local.yaml
+```
+
 ### 3. 配置验证
 
 ```bash
