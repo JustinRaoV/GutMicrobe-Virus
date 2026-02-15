@@ -1,0 +1,9 @@
+printshellcmds: true
+rerun-incomplete: true
+latency-wait: 60
+jobs: 300
+executor: slurm
+default-resources:
+  - mem_mb=64000
+  - runtime=1440
+  - threads=8

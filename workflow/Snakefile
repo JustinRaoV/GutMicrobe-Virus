@@ -1,0 +1,101 @@
+import csv
+from pathlib import Path
+import yaml
+
+configfile: "config/pipeline.yaml"
+
+EXEC = config["execution"]
+RUN_ID = EXEC["run_id"]
+TOOLS = config.get("tools", {}).get("enabled", {})
+MOCK_MODE = bool(EXEC.get("mock_mode", False))
+DEFAULT_THREADS = int(config.get("resources", {}).get("default_threads", 1))
+
+_config_dir = Path(config.get("_meta", {}).get("config_dir", "."))
+mapping_file = Path(config["containers"]["mapping_file"])
+if not mapping_file.is_absolute():
+    mapping_file = (_config_dir / mapping_file).resolve()
+
+with open(mapping_file, "r", encoding="utf-8") as _mf:
+    IMAGES = (yaml.safe_load(_mf) or {}).get("images", {})
+
+sample_sheet = Path(EXEC["sample_sheet"])
+if not sample_sheet.is_absolute():
+    sample_sheet = (_config_dir / sample_sheet).resolve()
+
+SAMPLE_META = {}
+with open(sample_sheet, "r", encoding="utf-8") as fh:
+    reader = csv.DictReader(fh, delimiter="\t")
+    for row in reader:
+        SAMPLE_META[row["sample"]] = row
+
+SAMPLES = sorted(SAMPLE_META)
+if not SAMPLES:
+    raise ValueError("sample_sheet 中没有样本")
+
+DOWNSTREAM_METHODS = []
+if TOOLS.get("coverm", False):
+    DOWNSTREAM_METHODS.append("coverm")
+if TOOLS.get("bowtie2_samtools", False):
+    DOWNSTREAM_METHODS.append("bowtie2_samtools")
+
+if not DOWNSTREAM_METHODS:
+    DOWNSTREAM_METHODS.append("coverm")
+
+
+def meta(sample):
+    return SAMPLE_META[sample]
+
+
+def sample_mode(sample):
+    return meta(sample).get("mode", "reads")
+
+
+def raw_input1(sample):
+    return str(Path(meta(sample)["input1"]).resolve())
+
+
+def raw_input2(sample):
+    v = meta(sample).get("input2", "")
+    return str(Path(v).resolve()) if v else ""
+
+
+def host_name(sample):
+    return meta(sample).get("host", "")
+
+
+def step_dir(sample, step):
+    return f"work/{RUN_ID}/upstream/{sample}/{step}"
+
+
+def result_dir(sample, step):
+    return f"results/{RUN_ID}/upstream/{sample}/{step}"
+
+
+def detect_outputs(sample):
+    outs = []
+    if TOOLS.get("virsorter", False):
+        outs.append(f"work/{RUN_ID}/upstream/{sample}/5.virsorter/contigs.fa")
+    if TOOLS.get("genomad", False):
+        outs.append(f"work/{RUN_ID}/upstream/{sample}/6.genomad/contigs.fa")
+    return outs
+
+
+def tool_cmd(tool_name):
+    image = IMAGES.get(tool_name, "")
+    if EXEC.get("use_singularity", True) and image:
+        return f"singularity exec {image} {tool_name}"
+    return tool_name
+
+
+include: "rules/upstream.smk"
+include: "rules/viruslib.smk"
+include: "rules/downstream.smk"
+include: "rules/agent.smk"
+
+
+rule all:
+    input:
+        expand(f"results/{RUN_ID}/upstream/{{sample}}/11.busco_filter/contigs.fa", sample=SAMPLES),
+        f"results/{RUN_ID}/viruslib/viruslib_nr.fa",
+        expand(f"results/{RUN_ID}/downstream/{{method}}/abundance.tsv", method=DOWNSTREAM_METHODS),
+        f"results/{RUN_ID}/agent/decisions.jsonl",

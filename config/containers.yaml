@@ -1,0 +1,14 @@
+images:
+  fastp: /path/to/sif/fastp.sif
+  bowtie2: /path/to/sif/bowtie2.sif
+  megahit: /path/to/sif/megahit.sif
+  vsearch: /path/to/sif/vsearch.sif
+  checkv: /path/to/sif/checkv.sif
+  virsorter: /path/to/sif/virsorter2.sif
+  genomad: /path/to/sif/genomad.sif
+  busco: /path/to/sif/busco.sif
+  coverm: /path/to/sif/coverm.sif
+  samtools: /path/to/sif/samtools.sif
+  vclust: /path/to/sif/vclust.sif
+  seqkit: /path/to/sif/seqkit.sif
+  phabox2: /path/to/sif/phabox2.sif

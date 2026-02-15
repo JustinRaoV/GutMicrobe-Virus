@@ -1,0 +1,55 @@
+execution:
+  run_id: demo-run
+  profile: local
+  raw_dir: raw
+  work_dir: work
+  cache_dir: cache
+  results_dir: results
+  reports_dir: reports
+  sample_sheet: raw/samples.tsv
+  use_singularity: true
+  offline: true
+  mock_mode: false
+
+containers:
+  mapping_file: config/containers.yaml
+
+tools:
+  enabled:
+    virsorter: true
+    genomad: true
+    coverm: true
+    bowtie2_samtools: true
+    vclust: true
+    phabox2: true
+  params:
+    fastp: ""
+    megahit: ""
+    vsearch_min_len: 1500
+
+agent:
+  enabled: true
+  auto_apply_risk_levels: ["low"]
+  retry_limit: 2
+  low_yield_threshold: 5
+
+reporting:
+  language: zh
+  figure_language: en
+
+resources:
+  default_threads: 8
+  slurm:
+    account: ""
+    partition: ""
+    time: "24:00:00"
+    mem_mb: 64000
+
+database:
+  checkv: /path/to/db/checkv
+  virsorter: /path/to/db/virsorter
+  genomad: /path/to/db/genomad
+  busco: /path/to/db/busco
+  bowtie2_index: /path/to/db/bowtie2_index
+  phabox2: /path/to/db/phabox2
+  blastn: /path/to/db/blastn
