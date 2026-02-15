@@ -20,6 +20,7 @@ DEFAULT_THREADS = int(config.get("resources", {}).get("default_threads", 1))
 CONFIG_DIR = Path(config.get("config_dir", ".")).expanduser().resolve()
 REPO_ROOT = Path(workflow.basedir).resolve().parent
 CONTAINER_RUNTIME = str(config.get("container_runtime", EXEC.get("container_runtime", "singularity")))
+GMV_PYTHONPATH = str((REPO_ROOT / "src").resolve())
 WORK_ROOT = str(EXEC.get("work_dir", "work"))
 RESULTS_ROOT = str(EXEC.get("results_dir", "results"))
 

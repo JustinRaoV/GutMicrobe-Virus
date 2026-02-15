@@ -8,4 +8,4 @@ rule agent_decision_log:
     params:
         steps="preprocess,host_removal,assembly,vsearch,detect,combine,checkv,high_quality,busco_filter,viruslib,downstream"
     shell:
-        "PYTHONPATH={workflow.basedir}/src python -m gmv.workflow.steps agent --steps {params.steps} --out {output}"
+        "PYTHONPATH={GMV_PYTHONPATH} python -m gmv.workflow.steps agent --steps {params.steps} --out {output}"

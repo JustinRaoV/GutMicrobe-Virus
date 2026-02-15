@@ -11,7 +11,7 @@ rule preprocess:
         fastp_params=config.get("tools", {}).get("params", {}).get("fastp", "")
     shell:
         (
-            "PYTHONPATH={workflow.basedir}/src python -m gmv.workflow.steps preprocess "
+            "PYTHONPATH={GMV_PYTHONPATH} python -m gmv.workflow.steps preprocess "
             "--r1-in {input.r1} --r2-in {input.r2} --r1-out {output.r1} --r2-out {output.r2} "
             "--threads {threads} --fastp-cmd \"{params.fastp_cmd}\" --fastp-params \"{params.fastp_params}\" "
             + ("--mock" if MOCK_MODE else "")
@@ -37,7 +37,7 @@ rule host_removal:
         bowtie2_cmd=tool_cmd("bowtie2")
     shell:
         (
-            "PYTHONPATH={workflow.basedir}/src python -m gmv.workflow.steps host-removal "
+            "PYTHONPATH={GMV_PYTHONPATH} python -m gmv.workflow.steps host-removal "
             "--r1-in {input.r1} --r2-in {input.r2} --r1-out {output.r1} --r2-out {output.r2} "
             "--host \"{params.host}\" --host-index \"{params.host_index}\" --prefix \"{params.prefix}\" "
             "--threads {threads} --bowtie2-cmd \"{params.bowtie2_cmd}\" "
@@ -59,7 +59,7 @@ rule assembly:
         megahit_params=config.get("tools", {}).get("params", {}).get("megahit", "")
     shell:
         (
-            "PYTHONPATH={workflow.basedir}/src python -m gmv.workflow.steps assembly "
+            "PYTHONPATH={GMV_PYTHONPATH} python -m gmv.workflow.steps assembly "
             "--mode {params.mode} --sample {params.sample} --input1 {input.input1} --input2 {input.input2} --out {output.out} "
             "--threads {threads} --megahit-cmd \"{params.megahit_cmd}\" --megahit-params \"{params.megahit_params}\" "
             + ("--mock" if MOCK_MODE else "")
@@ -76,7 +76,7 @@ rule vsearch:
         vsearch_min_len=config.get("tools", {}).get("params", {}).get("vsearch_min_len", 1500)
     shell:
         (
-            "PYTHONPATH={workflow.basedir}/src python -m gmv.workflow.steps vsearch "
+            "PYTHONPATH={GMV_PYTHONPATH} python -m gmv.workflow.steps vsearch "
             "--input {input} --out {output} --vsearch-cmd \"{params.vsearch_cmd}\" --min-len {params.vsearch_min_len} "
             + ("--mock" if MOCK_MODE else "")
         )
@@ -95,7 +95,7 @@ if TOOLS.get("virsorter", False):
             tool_cmd=tool_cmd("virsorter")
         shell:
             (
-                "PYTHONPATH={workflow.basedir}/src python -m gmv.workflow.steps detect --tool virsorter "
+                "PYTHONPATH={GMV_PYTHONPATH} python -m gmv.workflow.steps detect --tool virsorter "
                 "--tool-cmd \"{params.tool_cmd}\" --db {params.db} --input {input} --workdir {params.wd} --out {output} --threads {threads} "
                 + ("--mock" if MOCK_MODE else "")
             )
@@ -113,7 +113,7 @@ if TOOLS.get("genomad", False):
             tool_cmd=tool_cmd("genomad")
         shell:
             (
-                "PYTHONPATH={workflow.basedir}/src python -m gmv.workflow.steps detect --tool genomad "
+                "PYTHONPATH={GMV_PYTHONPATH} python -m gmv.workflow.steps detect --tool genomad "
                 "--tool-cmd \"{params.tool_cmd}\" --db {params.db} --input {input} --workdir {params.wd} --out {output} --threads {threads} "
                 + ("--mock" if MOCK_MODE else "")
             )
@@ -125,7 +125,7 @@ rule combine:
     output:
         f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/7.combination/contigs.fa"
     shell:
-        "PYTHONPATH={workflow.basedir}/src python -m gmv.workflow.steps combine --inputs {input} --out {output}"
+        "PYTHONPATH={GMV_PYTHONPATH} python -m gmv.workflow.steps combine --inputs {input} --out {output}"
 
 
 rule checkv:
@@ -141,7 +141,7 @@ rule checkv:
         checkv_cmd=tool_cmd("checkv")
     shell:
         (
-            "PYTHONPATH={workflow.basedir}/src python -m gmv.workflow.steps checkv "
+            "PYTHONPATH={GMV_PYTHONPATH} python -m gmv.workflow.steps checkv "
             "--input {input} --out-dir {params.out_dir} --db {params.db} --checkv-cmd \"{params.checkv_cmd}\" --threads {threads} "
             + ("--mock" if MOCK_MODE else "")
         )
@@ -154,7 +154,7 @@ rule high_quality:
     output:
         f"{RESULTS_ROOT}/{RUN_ID}/upstream/{{sample}}/9.high_quality/contigs.fa"
     shell:
-        "PYTHONPATH={workflow.basedir}/src python -m gmv.workflow.steps high-quality --input {input.fasta} --summary {input.summary} --out {output}"
+        "PYTHONPATH={GMV_PYTHONPATH} python -m gmv.workflow.steps high-quality --input {input.fasta} --summary {input.summary} --out {output}"
 
 
 rule busco_filter:
@@ -170,7 +170,7 @@ rule busco_filter:
         ratio_threshold=config.get("tools", {}).get("params", {}).get("busco_ratio_threshold", 0.05),
     shell:
         (
-            "PYTHONPATH={workflow.basedir}/src python -m gmv.workflow.steps busco "
+            "PYTHONPATH={GMV_PYTHONPATH} python -m gmv.workflow.steps busco "
             "--input {input} --out {output} --sample {params.sample} --threads {threads} "
             "--busco-cmd \"{params.busco_cmd}\" --busco-db \"{params.busco_db}\" "
             "--ratio-threshold {params.ratio_threshold} "

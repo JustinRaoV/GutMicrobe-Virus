@@ -12,10 +12,9 @@ rule downstream_quant:
         method="|".join(DOWNSTREAM_METHODS)
     shell:
         (
-            "PYTHONPATH={workflow.basedir}/src python -m gmv.workflow.steps downstream "
+            "PYTHONPATH={GMV_PYTHONPATH} python -m gmv.workflow.steps downstream "
             "--samples {params.sample_sheet} --method {wildcards.method} --viruslib {input.viruslib} "
             "--out {output} --threads {threads} "
             "--coverm-cmd \"{params.coverm_cmd}\" --coverm-params \"{params.coverm_params}\" "
             + ("--mock" if MOCK_MODE else "")
         )
-

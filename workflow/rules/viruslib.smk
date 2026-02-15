@@ -4,7 +4,7 @@ rule viruslib_merge:
     output:
         f"{WORK_ROOT}/{RUN_ID}/viruslib/1.merge/all_contigs.fa"
     shell:
-        "PYTHONPATH={workflow.basedir}/src python -m gmv.workflow.steps viruslib-merge --inputs {input} --out {output}"
+        "PYTHONPATH={GMV_PYTHONPATH} python -m gmv.workflow.steps viruslib-merge --inputs {input} --out {output}"
 
 
 rule viruslib_dedup:
@@ -22,7 +22,7 @@ rule viruslib_dedup:
         qcov=config.get("tools", {}).get("params", {}).get("vclust_qcov", 0.85),
     shell:
         (
-            "PYTHONPATH={workflow.basedir}/src python -m gmv.workflow.steps viruslib-dedup "
+            "PYTHONPATH={GMV_PYTHONPATH} python -m gmv.workflow.steps viruslib-dedup "
             "--input {input} --out {output.fasta} --clusters {output.clusters} "
             "--workdir {params.workdir} --threads {threads} "
             "--vclust-cmd \"{params.vclust_cmd}\" --min-ident {params.min_ident} --ani {params.ani} --qcov {params.qcov} "
@@ -43,9 +43,8 @@ if TOOLS.get("phabox2", False):
             phabox2_cmd=tool_cmd("phabox2"),
         shell:
             (
-                "PYTHONPATH={workflow.basedir}/src python -m gmv.workflow.steps viruslib-annotate "
+                "PYTHONPATH={GMV_PYTHONPATH} python -m gmv.workflow.steps viruslib-annotate "
                 "--input {input} --out-dir {params.out_dir} --db {params.db} --threads {threads} "
                 "--phabox2-cmd \"{params.phabox2_cmd}\" "
                 + ("--mock" if MOCK_MODE else "")
             )
-
