@@ -1,0 +1,67 @@
+# 服务器运行手册（CentOS7 + Singularity3.x + SLURM）
+
+## 1. 克隆与切换版本
+
+```bash
+git clone <repo-url>
+cd GutMicrobeVirus
+# 建议拉取里程碑 tag
+git fetch --tags
+git checkout <tag>
+```
+
+## 2. 准备离线资源
+
+- SIF 镜像目录（示例：`/data/sif/`）
+- 数据库目录（示例：`/data/db/`）
+- 样本表 TSV（示例：`/data/project/raw/samples.tsv`）
+
+## 3. 修改配置
+
+- `config/pipeline.yaml`
+- `config/containers.yaml`
+
+确保所有路径为服务器本地可访问绝对路径。
+
+## 4. 预校验
+
+```bash
+PYTHONPATH=src python -m gmv.cli validate --config config/pipeline.yaml
+```
+
+## 5. 运行
+
+### 本地模式
+
+```bash
+PYTHONPATH=src python -m gmv.cli run --config config/pipeline.yaml --profile local
+```
+
+### SLURM 模式
+
+```bash
+PYTHONPATH=src python -m gmv.cli run --config config/pipeline.yaml --profile slurm
+```
+
+### Dry-run
+
+```bash
+PYTHONPATH=src python -m gmv.cli run --config config/pipeline.yaml --dry-run
+```
+
+## 6. 报告输出
+
+```bash
+PYTHONPATH=src python -m gmv.cli report --config config/pipeline.yaml
+```
+
+## 7. 常见问题
+
+1. `validate` 报镜像不存在
+- 检查 `config/containers.yaml` 路径。
+
+2. `validate` 报数据库不存在
+- 检查 `config/pipeline.yaml` 的 `database` 段。
+
+3. `run` 报找不到 snakemake
+- 在服务器 conda 环境预装 snakemake。

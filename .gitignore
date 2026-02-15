@@ -172,3 +172,17 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# GutMicrobeVirus v2 runtime outputs
+.snakemake/
+work/
+cache/
+results/
+reports/
+
+# local worktrees
+.worktrees/
+worktrees/
+
+# test-generated temp configs
+tests/fixtures/minimal/config/bad_*.yaml

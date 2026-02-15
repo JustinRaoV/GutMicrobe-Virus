@@ -1,0 +1,21 @@
+name: gmv
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python=3.9
+  - snakemake
+  - fastp
+  - seqkit
+  - pandas
+  - bowtie2
+  - samtools
+  - vsearch
+  - megahit
+  - checkv
+  - busco
+  - virsorter
+  - genomad
+  - coverm
+  - pyyaml
