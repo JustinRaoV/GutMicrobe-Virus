@@ -1,8 +1,8 @@
 rule downstream_quant:
     input:
-        viruslib=f"results/{RUN_ID}/viruslib/viruslib_nr.fa"
+        viruslib=f"{RESULTS_ROOT}/{RUN_ID}/viruslib/viruslib_nr.fa"
     output:
-        f"results/{RUN_ID}/downstream/{{method}}/abundance.tsv"
+        f"{RESULTS_ROOT}/{RUN_ID}/downstream/{{method}}/abundance.tsv"
     params:
         sample_sheet=str(sample_sheet)
     wildcard_constraints:

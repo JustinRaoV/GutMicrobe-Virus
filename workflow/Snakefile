@@ -2,7 +2,14 @@ import csv
 from pathlib import Path
 import yaml
 
-configfile: "config/pipeline.yaml"
+# NOTE:
+# - We intentionally do NOT hardcode `configfile:` here.
+# - Use `gmv run --config <...>` which passes `--configfile` and `config_dir`.
+# - If you call snakemake directly, pass `--configfile` and ensure relative paths
+#   in config are resolvable from `config_dir`.
+
+if "execution" not in config:
+    raise ValueError("未加载配置：请使用 gmv run 或 snakemake --configfile <config.yaml>")
 
 EXEC = config["execution"]
 RUN_ID = EXEC["run_id"]
@@ -10,17 +17,31 @@ TOOLS = config.get("tools", {}).get("enabled", {})
 MOCK_MODE = bool(EXEC.get("mock_mode", False))
 DEFAULT_THREADS = int(config.get("resources", {}).get("default_threads", 1))
 
-_config_dir = Path(config.get("_meta", {}).get("config_dir", "."))
-mapping_file = Path(config["containers"]["mapping_file"])
-if not mapping_file.is_absolute():
-    mapping_file = (_config_dir / mapping_file).resolve()
+CONFIG_DIR = Path(config.get("config_dir", ".")).expanduser().resolve()
+WORK_ROOT = str(EXEC.get("work_dir", "work"))
+RESULTS_ROOT = str(EXEC.get("results_dir", "results"))
 
+
+def _resolve_from(base: Path, value: str) -> Path:
+    p = Path(value).expanduser()
+    return p if p.is_absolute() else (base / p).resolve()
+
+
+# Resolve containers mapping
+mapping_file = _resolve_from(CONFIG_DIR, config["containers"]["mapping_file"])
 with open(mapping_file, "r", encoding="utf-8") as _mf:
     IMAGES = (yaml.safe_load(_mf) or {}).get("images", {})
+IMAGES = {k: str(_resolve_from(mapping_file.parent, v)) for k, v in IMAGES.items()}
 
-sample_sheet = Path(EXEC["sample_sheet"])
-if not sample_sheet.is_absolute():
-    sample_sheet = (_config_dir / sample_sheet).resolve()
+# Resolve databases (strings only)
+DB = {
+    k: str(_resolve_from(CONFIG_DIR, v))
+    for k, v in (config.get("database", {}) or {}).items()
+    if isinstance(v, str)
+}
+
+# Resolve sample sheet path
+sample_sheet = _resolve_from(CONFIG_DIR, EXEC["sample_sheet"])
 
 SAMPLE_META = {}
 with open(sample_sheet, "r", encoding="utf-8") as fh:
@@ -37,7 +58,6 @@ if TOOLS.get("coverm", False):
     DOWNSTREAM_METHODS.append("coverm")
 if TOOLS.get("bowtie2_samtools", False):
     DOWNSTREAM_METHODS.append("bowtie2_samtools")
-
 if not DOWNSTREAM_METHODS:
     DOWNSTREAM_METHODS.append("coverm")
 
@@ -51,12 +71,17 @@ def sample_mode(sample):
 
 
 def raw_input1(sample):
-    return str(Path(meta(sample)["input1"]).resolve())
+    p = Path(meta(sample)["input1"]).expanduser()
+    # Relative paths in sample sheet are resolved against the sample sheet directory.
+    return str(p if p.is_absolute() else (sample_sheet.parent / p).resolve())
 
 
 def raw_input2(sample):
     v = meta(sample).get("input2", "")
-    return str(Path(v).resolve()) if v else ""
+    if not v:
+        return ""
+    p = Path(v).expanduser()
+    return str(p if p.is_absolute() else (sample_sheet.parent / p).resolve())
 
 
 def host_name(sample):
@@ -64,19 +89,19 @@ def host_name(sample):
 
 
 def step_dir(sample, step):
-    return f"work/{RUN_ID}/upstream/{sample}/{step}"
+    return f"{WORK_ROOT}/{RUN_ID}/upstream/{sample}/{step}"
 
 
 def result_dir(sample, step):
-    return f"results/{RUN_ID}/upstream/{sample}/{step}"
+    return f"{RESULTS_ROOT}/{RUN_ID}/upstream/{sample}/{step}"
 
 
 def detect_outputs(sample):
     outs = []
     if TOOLS.get("virsorter", False):
-        outs.append(f"work/{RUN_ID}/upstream/{sample}/5.virsorter/contigs.fa")
+        outs.append(f"{WORK_ROOT}/{RUN_ID}/upstream/{sample}/5.virsorter/contigs.fa")
     if TOOLS.get("genomad", False):
-        outs.append(f"work/{RUN_ID}/upstream/{sample}/6.genomad/contigs.fa")
+        outs.append(f"{WORK_ROOT}/{RUN_ID}/upstream/{sample}/6.genomad/contigs.fa")
     return outs
 
 
@@ -95,7 +120,7 @@ include: "rules/agent.smk"
 
 rule all:
     input:
-        expand(f"results/{RUN_ID}/upstream/{{sample}}/11.busco_filter/contigs.fa", sample=SAMPLES),
-        f"results/{RUN_ID}/viruslib/viruslib_nr.fa",
-        expand(f"results/{RUN_ID}/downstream/{{method}}/abundance.tsv", method=DOWNSTREAM_METHODS),
-        f"results/{RUN_ID}/agent/decisions.jsonl",
+        expand(f"{RESULTS_ROOT}/{RUN_ID}/upstream/{{sample}}/11.busco_filter/contigs.fa", sample=SAMPLES),
+        f"{RESULTS_ROOT}/{RUN_ID}/viruslib/viruslib_nr.fa",
+        expand(f"{RESULTS_ROOT}/{RUN_ID}/downstream/{{method}}/abundance.tsv", method=DOWNSTREAM_METHODS),
+        f"{RESULTS_ROOT}/{RUN_ID}/agent/decisions.jsonl",

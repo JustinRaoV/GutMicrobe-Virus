@@ -3,8 +3,8 @@ rule preprocess:
         r1=lambda wc: raw_input1(wc.sample),
         r2=lambda wc: raw_input2(wc.sample)
     output:
-        r1=f"work/{RUN_ID}/upstream/{{sample}}/1.trimmed/{{sample}}_R1.fastq",
-        r2=f"work/{RUN_ID}/upstream/{{sample}}/1.trimmed/{{sample}}_R2.fastq"
+        r1=f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/1.trimmed/{{sample}}_R1.fastq",
+        r2=f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/1.trimmed/{{sample}}_R2.fastq"
     threads: DEFAULT_THREADS
     params:
         fastp_cmd=tool_cmd("fastp"),
@@ -20,16 +20,16 @@ rule preprocess:
 
 rule host_removal:
     input:
-        r1=f"work/{RUN_ID}/upstream/{{sample}}/1.trimmed/{{sample}}_R1.fastq",
-        r2=f"work/{RUN_ID}/upstream/{{sample}}/1.trimmed/{{sample}}_R2.fastq"
+        r1=f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/1.trimmed/{{sample}}_R1.fastq",
+        r2=f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/1.trimmed/{{sample}}_R2.fastq"
     output:
-        r1=f"work/{RUN_ID}/upstream/{{sample}}/2.host_removed/{{sample}}_R1.fastq",
-        r2=f"work/{RUN_ID}/upstream/{{sample}}/2.host_removed/{{sample}}_R2.fastq"
+        r1=f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/2.host_removed/{{sample}}_R1.fastq",
+        r2=f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/2.host_removed/{{sample}}_R2.fastq"
     threads: DEFAULT_THREADS
     params:
         host=lambda wc: host_name(wc.sample),
-        host_index=lambda wc: str(Path(config["database"]["bowtie2_index"]).resolve() / host_name(wc.sample) / host_name(wc.sample)),
-        prefix=lambda wc: f"work/{RUN_ID}/upstream/{wc.sample}/2.host_removed/{wc.sample}",
+        host_index=lambda wc: str(Path(DB["bowtie2_index"]).resolve() / host_name(wc.sample) / host_name(wc.sample)),
+        prefix=lambda wc: f"{WORK_ROOT}/{RUN_ID}/upstream/{wc.sample}/2.host_removed/{wc.sample}",
         bowtie2_cmd=tool_cmd("bowtie2")
     shell:
         (
@@ -43,10 +43,10 @@ rule host_removal:
 
 rule assembly:
     input:
-        input1=lambda wc: raw_input1(wc.sample) if sample_mode(wc.sample) == "contigs" else f"work/{RUN_ID}/upstream/{wc.sample}/2.host_removed/{wc.sample}_R1.fastq",
-        input2=lambda wc: raw_input2(wc.sample) if sample_mode(wc.sample) == "contigs" else f"work/{RUN_ID}/upstream/{wc.sample}/2.host_removed/{wc.sample}_R2.fastq"
+        input1=lambda wc: raw_input1(wc.sample) if sample_mode(wc.sample) == "contigs" else f"{WORK_ROOT}/{RUN_ID}/upstream/{wc.sample}/2.host_removed/{wc.sample}_R1.fastq",
+        input2=lambda wc: raw_input2(wc.sample) if sample_mode(wc.sample) == "contigs" else f"{WORK_ROOT}/{RUN_ID}/upstream/{wc.sample}/2.host_removed/{wc.sample}_R2.fastq"
     output:
-        out=f"work/{RUN_ID}/upstream/{{sample}}/3.assembly/final.contigs.fa"
+        out=f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/3.assembly/final.contigs.fa"
     threads: DEFAULT_THREADS
     params:
         mode=lambda wc: sample_mode(wc.sample),
@@ -64,9 +64,9 @@ rule assembly:
 
 rule vsearch:
     input:
-        f"work/{RUN_ID}/upstream/{{sample}}/3.assembly/final.contigs.fa"
+        f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/3.assembly/final.contigs.fa"
     output:
-        f"work/{RUN_ID}/upstream/{{sample}}/4.vsearch/contigs.fa"
+        f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/4.vsearch/contigs.fa"
     params:
         vsearch_cmd=tool_cmd("vsearch"),
         vsearch_min_len=config.get("tools", {}).get("params", {}).get("vsearch_min_len", 1500)
@@ -81,13 +81,13 @@ rule vsearch:
 if TOOLS.get("virsorter", False):
     rule detect_virsorter:
         input:
-            f"work/{RUN_ID}/upstream/{{sample}}/4.vsearch/contigs.fa"
+            f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/4.vsearch/contigs.fa"
         output:
-            f"work/{RUN_ID}/upstream/{{sample}}/5.virsorter/contigs.fa"
+            f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/5.virsorter/contigs.fa"
         threads: DEFAULT_THREADS
         params:
-            db=str(Path(config["database"]["virsorter"]).resolve()),
-            wd=lambda wc: f"work/{RUN_ID}/upstream/{wc.sample}/5.virsorter/_tmp",
+            db=str(Path(DB["virsorter"]).resolve()),
+            wd=lambda wc: f"{WORK_ROOT}/{RUN_ID}/upstream/{wc.sample}/5.virsorter/_tmp",
             tool_cmd=tool_cmd("virsorter")
         shell:
             (
@@ -99,13 +99,13 @@ if TOOLS.get("virsorter", False):
 if TOOLS.get("genomad", False):
     rule detect_genomad:
         input:
-            f"work/{RUN_ID}/upstream/{{sample}}/4.vsearch/contigs.fa"
+            f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/4.vsearch/contigs.fa"
         output:
-            f"work/{RUN_ID}/upstream/{{sample}}/6.genomad/contigs.fa"
+            f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/6.genomad/contigs.fa"
         threads: DEFAULT_THREADS
         params:
-            db=str(Path(config["database"]["genomad"]).resolve()),
-            wd=lambda wc: f"work/{RUN_ID}/upstream/{wc.sample}/6.genomad/_tmp",
+            db=str(Path(DB["genomad"]).resolve()),
+            wd=lambda wc: f"{WORK_ROOT}/{RUN_ID}/upstream/{wc.sample}/6.genomad/_tmp",
             tool_cmd=tool_cmd("genomad")
         shell:
             (
@@ -119,21 +119,21 @@ rule combine:
     input:
         lambda wc: detect_outputs(wc.sample)
     output:
-        f"work/{RUN_ID}/upstream/{{sample}}/7.combination/contigs.fa"
+        f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/7.combination/contigs.fa"
     shell:
         "PYTHONPATH={workflow.basedir}/src python -m gmv.workflow.steps combine --inputs {input} --out {output}"
 
 
 rule checkv:
     input:
-        f"work/{RUN_ID}/upstream/{{sample}}/7.combination/contigs.fa"
+        f"{WORK_ROOT}/{RUN_ID}/upstream/{{sample}}/7.combination/contigs.fa"
     output:
-        summary=f"results/{RUN_ID}/upstream/{{sample}}/8.checkv/quality_summary.tsv",
-        contigs=f"results/{RUN_ID}/upstream/{{sample}}/8.checkv/contigs.fa"
+        summary=f"{RESULTS_ROOT}/{RUN_ID}/upstream/{{sample}}/8.checkv/quality_summary.tsv",
+        contigs=f"{RESULTS_ROOT}/{RUN_ID}/upstream/{{sample}}/8.checkv/contigs.fa"
     threads: DEFAULT_THREADS
     params:
-        out_dir=lambda wc: f"results/{RUN_ID}/upstream/{wc.sample}/8.checkv",
-        db=str(Path(config["database"]["checkv"]).resolve()),
+        out_dir=lambda wc: f"{RESULTS_ROOT}/{RUN_ID}/upstream/{wc.sample}/8.checkv",
+        db=str(Path(DB["checkv"]).resolve()),
         checkv_cmd=tool_cmd("checkv")
     shell:
         (
@@ -145,19 +145,19 @@ rule checkv:
 
 rule high_quality:
     input:
-        fasta=f"results/{RUN_ID}/upstream/{{sample}}/8.checkv/contigs.fa",
-        summary=f"results/{RUN_ID}/upstream/{{sample}}/8.checkv/quality_summary.tsv"
+        fasta=f"{RESULTS_ROOT}/{RUN_ID}/upstream/{{sample}}/8.checkv/contigs.fa",
+        summary=f"{RESULTS_ROOT}/{RUN_ID}/upstream/{{sample}}/8.checkv/quality_summary.tsv"
     output:
-        f"results/{RUN_ID}/upstream/{{sample}}/9.high_quality/contigs.fa"
+        f"{RESULTS_ROOT}/{RUN_ID}/upstream/{{sample}}/9.high_quality/contigs.fa"
     shell:
         "PYTHONPATH={workflow.basedir}/src python -m gmv.workflow.steps high-quality --input {input.fasta} --summary {input.summary} --out {output}"
 
 
 rule busco_filter:
     input:
-        f"results/{RUN_ID}/upstream/{{sample}}/9.high_quality/contigs.fa"
+        f"{RESULTS_ROOT}/{RUN_ID}/upstream/{{sample}}/9.high_quality/contigs.fa"
     output:
-        f"results/{RUN_ID}/upstream/{{sample}}/11.busco_filter/contigs.fa"
+        f"{RESULTS_ROOT}/{RUN_ID}/upstream/{{sample}}/11.busco_filter/contigs.fa"
     params:
         sample=lambda wc: wc.sample
     shell:

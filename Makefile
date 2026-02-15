@@ -16,7 +16,7 @@ test: test-unit test-integration
 
 dryrun-local:
 	@if command -v snakemake >/dev/null 2>&1; then \
-		snakemake --snakefile workflow/Snakefile --configfile $(CONFIG) --profile profiles/local -n; \
+		PYTHONPATH=src $(PYTHON) -m gmv.cli run --config $(CONFIG) --profile local --dry-run; \
 	else \
 		echo "WARNING: snakemake 未安装，跳过 dry-run"; \
 	fi

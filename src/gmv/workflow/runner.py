@@ -12,6 +12,8 @@ def run_snakemake(config_path: str, profile: str, dry_run: bool = False, cores: 
     if not snake:
         print("错误: 未找到 snakemake 命令，请在服务器环境安装 Snakemake。")
         return 2
+    cfg_path = Path(config_path).resolve()
+    cfg_dir = cfg_path.parent
 
     repo_root = Path(__file__).resolve().parents[3]
     snakefile = repo_root / "workflow" / "Snakefile"
@@ -22,7 +24,9 @@ def run_snakemake(config_path: str, profile: str, dry_run: bool = False, cores: 
         "--snakefile",
         str(snakefile),
         "--configfile",
-        str(Path(config_path).resolve()),
+        str(cfg_path),
+        "--config",
+        f"config_dir={cfg_dir}",
         "--profile",
         str(profile_dir),
     ]

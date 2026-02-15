@@ -41,7 +41,8 @@ def _apply_defaults(config: Dict[str, Any]) -> Dict[str, Any]:
     cfg["execution"].setdefault("raw_dir", "raw")
     cfg["execution"].setdefault("work_dir", "work")
     cfg["execution"].setdefault("cache_dir", "cache")
-    cfg["execution"].setdefault("results_dir", f"results/{cfg['execution']['run_id']}")
+    # Base results directory. Run-specific outputs live under `{results_dir}/{run_id}`.
+    cfg["execution"].setdefault("results_dir", "results")
     cfg["execution"].setdefault("reports_dir", "reports")
     cfg["execution"].setdefault("sample_sheet", "raw/samples.tsv")
     cfg["execution"].setdefault("use_singularity", True)
