@@ -202,14 +202,18 @@ def _assembly(args: argparse.Namespace) -> int:
         write_fasta([("contig_1", assembled)], args.contigs_out)
         return 0
 
-    def _fastq_has_reads(path: str) -> bool:
+    def _fastq_has_usable_reads(path: str, min_len: int = 21, max_reads: int = 500) -> bool:
+        reads_seen = 0
         with open_text_auto(path, "rt") as handle:
             for idx, raw in enumerate(handle, start=1):
                 # FASTQ sequence lines are 2nd/6th/10th... (idx % 4 == 2)
-                if idx % 4 == 2 and raw.strip():
-                    return True
-                if idx >= 40:
-                    break
+                if idx % 4 == 2:
+                    seq = raw.strip()
+                    reads_seen += 1
+                    if len(seq) >= min_len:
+                        return True
+                    if reads_seen >= max_reads:
+                        break
         return False
 
     ensure_parent(args.contigs_out)
@@ -217,9 +221,9 @@ def _assembly(args: argparse.Namespace) -> int:
     if args.megahit_cmd:
         # If host removal leaves no reads, Megahit exits with code 1.
         # Degrade gracefully to keep whole-project workflow progressing.
-        if not _fastq_has_reads(args.r1_in) and not _fastq_has_reads(args.r2_in):
+        if not _fastq_has_usable_reads(args.r1_in) and not _fastq_has_usable_reads(args.r2_in):
             print(
-                f"[GMV] assembly fallback: no reads left after host_removal for {args.r1_in} / {args.r2_in}",
+                f"[GMV] assembly fallback: no usable reads (len>=21) after host_removal for {args.r1_in} / {args.r2_in}",
                 flush=True,
             )
             return _fallback_assembly()
@@ -253,7 +257,7 @@ def _assembly(args: argparse.Namespace) -> int:
         except RuntimeError as exc:
             # In tiny test datasets, host-removal may strip nearly everything and
             # Megahit can fail with no useful assembly. Fall back to synthetic contig.
-            if not _fastq_has_reads(args.r1_in) and not _fastq_has_reads(args.r2_in):
+            if not _fastq_has_usable_reads(args.r1_in) and not _fastq_has_usable_reads(args.r2_in):
                 print(
                     f"[GMV] assembly fallback after megahit failure: {exc}",
                     flush=True,

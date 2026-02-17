@@ -25,7 +25,7 @@ def test_assembly_reuses_existing_final_contigs(tmp_path: Path, monkeypatch) -> 
 
     called = {"run": False}
 
-    def _fake_run(cmd: str, cwd: str | None = None) -> None:
+    def _fake_run(cmd: str, cwd: str | None = None, log_path: str | None = None) -> None:
         called["run"] = True
 
     monkeypatch.setattr(upstream, "run_cmd", _fake_run)
@@ -43,7 +43,7 @@ def test_assembly_cleans_stale_dir_then_runs(tmp_path: Path, monkeypatch) -> Non
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "stale.txt").write_text("x", encoding="utf-8")
 
-    def _fake_run(cmd: str, cwd: str | None = None) -> None:
+    def _fake_run(cmd: str, cwd: str | None = None, log_path: str | None = None) -> None:
         (out_dir / "final.contigs.fa").write_text(">c2\nTGCA\n", encoding="utf-8")
 
     monkeypatch.setattr(upstream, "run_cmd", _fake_run)
@@ -63,7 +63,7 @@ def test_assembly_fallback_when_no_reads_left(tmp_path: Path, monkeypatch) -> No
 
     called = {"run": False}
 
-    def _fake_run(cmd: str, cwd: str | None = None) -> None:
+    def _fake_run(cmd: str, cwd: str | None = None, log_path: str | None = None) -> None:
         called["run"] = True
 
     monkeypatch.setattr(upstream, "run_cmd", _fake_run)
@@ -73,3 +73,24 @@ def test_assembly_fallback_when_no_reads_left(tmp_path: Path, monkeypatch) -> No
     assert called["run"] is False
     assert Path(args.contigs_out).exists()
     assert Path(args.contigs_out).read_text(encoding="utf-8").startswith(">contig_1")
+
+
+def test_assembly_fallback_when_reads_too_short_for_megahit(tmp_path: Path, monkeypatch) -> None:
+    args = _mk_args(tmp_path)
+    short_record = "@r1\nACGTACGTAC\n+\nIIIIIIIIII\n"
+    for fq in (Path(args.r1_in), Path(args.r2_in)):
+        fq.parent.mkdir(parents=True, exist_ok=True)
+        with gzip.open(fq, "wt", encoding="utf-8") as handle:
+            handle.write(short_record)
+
+    called = {"run": False}
+
+    def _fake_run(cmd: str, cwd: str | None = None, log_path: str | None = None) -> None:
+        called["run"] = True
+
+    monkeypatch.setattr(upstream, "run_cmd", _fake_run)
+    rc = upstream._assembly(args)
+
+    assert rc == 0
+    assert called["run"] is False
+    assert Path(args.contigs_out).exists()
