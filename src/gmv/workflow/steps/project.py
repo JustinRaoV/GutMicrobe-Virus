@@ -75,7 +75,7 @@ def _downstream_quant(args: argparse.Namespace) -> int:
                 shlex.quote(args.viruslib_fa),
                 "--threads",
                 str(args.threads),
-                "--output-file",
+                "-o",
                 shlex.quote(args.abundance_out),
             ]
             if args.coverm_params:

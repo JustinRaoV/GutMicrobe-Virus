@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import gzip
 import json
-import os
 import shutil
 import subprocess
 import tempfile
@@ -38,7 +37,8 @@ def run_cmd(cmd: str, cwd: str | None = None, log_path: str | Path | None = None
             lines = actual_log_path.read_text(encoding="utf-8", errors="ignore").splitlines()
             tail = "\n".join(lines[-60:])
         finally:
-            if use_temp:
+            # Keep failed temp logs for post-mortem debugging.
+            if use_temp and completed.returncode == 0:
                 actual_log_path.unlink(missing_ok=True)
         if tail:
             raise RuntimeError(
