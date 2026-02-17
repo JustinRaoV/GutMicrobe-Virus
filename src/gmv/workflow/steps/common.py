@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import Iterable
 
@@ -22,9 +23,19 @@ def ensure_dir(path: str | Path) -> Path:
 
 
 def run_cmd(cmd: str, cwd: str | None = None) -> None:
-    completed = subprocess.run(cmd, shell=True, cwd=cwd)
+    with tempfile.NamedTemporaryFile(mode="w+", encoding="utf-8", delete=False) as log_file:
+        log_path = Path(log_file.name)
+        completed = subprocess.run(cmd, shell=True, cwd=cwd, stdout=log_file, stderr=log_file, text=True)
     if completed.returncode != 0:
+        try:
+            lines = log_path.read_text(encoding="utf-8", errors="ignore").splitlines()
+            tail = "\n".join(lines[-60:])
+        finally:
+            log_path.unlink(missing_ok=True)
+        if tail:
+            raise RuntimeError(f"命令失败({completed.returncode}): {cmd}\n[tool output tail]\n{tail}")
         raise RuntimeError(f"命令失败({completed.returncode}): {cmd}")
+    log_path.unlink(missing_ok=True)
 
 
 def copy_or_decompress(src: str | Path, dest: str | Path) -> None:
