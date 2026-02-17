@@ -279,19 +279,35 @@ def _vsearch_filter(args: argparse.Namespace) -> int:
 
     min_len = int(args.min_len)
     if args.vsearch_cmd:
-        cmd = _render_cmd(
-            args.vsearch_cmd,
-            [
-                "--fastx_filter",
-                args.contigs_in,
-                "--fastaout",
-                args.contigs_out,
-                "--minseqlength",
-                str(min_len),
-            ],
-        )
-        run_cmd(cmd)
-        return 0
+        option_flags = ["--fastq_minlen", "--minseqlength"]
+        last_invalid_option_error: RuntimeError | None = None
+
+        for flag in option_flags:
+            cmd = _render_cmd(
+                args.vsearch_cmd,
+                [
+                    "--fastx_filter",
+                    args.contigs_in,
+                    "--fastaout",
+                    args.contigs_out,
+                    flag,
+                    str(min_len),
+                ],
+            )
+            log_path = Path(args.contigs_out).resolve().parent / f"vsearch.{flag.lstrip('-')}.log"
+            try:
+                run_cmd(cmd, log_path=log_path)
+                return 0
+            except RuntimeError as exc:
+                text = str(exc)
+                if f"Invalid option(s): {flag}" in text:
+                    print(f"[GMV] vsearch option unsupported: {flag}, retry next candidate.", flush=True)
+                    last_invalid_option_error = exc
+                    continue
+                raise
+
+        if last_invalid_option_error is not None:
+            raise last_invalid_option_error
 
     records = read_fasta(args.contigs_in)
     kept = [(h, s) for h, s in records if len(s) >= min_len]
