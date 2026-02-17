@@ -30,11 +30,20 @@ def run_cmd(cmd: str, cwd: str | None = None) -> None:
 def copy_or_decompress(src: str | Path, dest: str | Path) -> None:
     src_path = Path(src).expanduser().resolve()
     dest_path = ensure_parent(dest)
-    if src_path.suffix == ".gz" and dest_path.suffix != ".gz":
+    src_is_gz = src_path.suffix == ".gz"
+    dest_is_gz = dest_path.suffix == ".gz"
+
+    if src_is_gz and not dest_is_gz:
         with gzip.open(src_path, "rb") as fin, dest_path.open("wb") as fout:
             shutil.copyfileobj(fin, fout)
-    else:
-        shutil.copy2(src_path, dest_path)
+        return
+
+    if not src_is_gz and dest_is_gz:
+        with src_path.open("rb") as fin, gzip.open(dest_path, "wb") as fout:
+            shutil.copyfileobj(fin, fout)
+        return
+
+    shutil.copy2(src_path, dest_path)
 
 
 def open_text_auto(path: str | Path, mode: str = "rt"):

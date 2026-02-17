@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import argparse
 import csv
+import re
 import shlex
+import subprocess
 from pathlib import Path
 
 from .common import (
@@ -67,6 +69,40 @@ def _resolve_bowtie2_prefix(index_root: str, host: str) -> str:
     return ""
 
 
+def _locate_host_removed_pair(out_dir: Path, base: str = "host_removed") -> tuple[Path, Path] | None:
+    explicit = [
+        (out_dir / f"{base}.1.fq.gz", out_dir / f"{base}.2.fq.gz"),
+        (out_dir / f"{base}.1.fastq.gz", out_dir / f"{base}.2.fastq.gz"),
+        (out_dir / f"{base}.1.gz", out_dir / f"{base}.2.gz"),
+        (out_dir / f"{base}.1.fq", out_dir / f"{base}.2.fq"),
+        (out_dir / f"{base}.1.fastq", out_dir / f"{base}.2.fastq"),
+        (out_dir / f"{base}.1", out_dir / f"{base}.2"),
+    ]
+    for r1, r2 in explicit:
+        if r1.exists() and r2.exists():
+            return r1, r2
+
+    files = [p for p in out_dir.glob(f"{base}*") if p.is_file()]
+    if not files:
+        return None
+
+    r1_hits: list[Path] = []
+    r2_hits: list[Path] = []
+    for path in files:
+        name = path.name
+        if re.search(r"(?:^|[._-])1(?:[._-]|$)", name):
+            r1_hits.append(path)
+        if re.search(r"(?:^|[._-])2(?:[._-]|$)", name):
+            r2_hits.append(path)
+
+    if r1_hits and r2_hits:
+        r1_hits.sort(key=lambda p: len(p.name))
+        r2_hits.sort(key=lambda p: len(p.name))
+        return r1_hits[0], r2_hits[0]
+
+    return None
+
+
 def _preprocess(args: argparse.Namespace) -> int:
     ensure_parent(args.r1_out)
     ensure_parent(args.r2_out)
@@ -103,6 +139,7 @@ def _host_removal(args: argparse.Namespace) -> int:
     if args.bowtie2_cmd and resolved_prefix:
         out_dir = Path(args.r1_out).resolve().parent
         prefix = out_dir / "host_removed"
+        pair_pattern = out_dir / "host_removed.%.fq.gz"
         cmd = _render_cmd(
             args.bowtie2_cmd,
             [
@@ -116,16 +153,23 @@ def _host_removal(args: argparse.Namespace) -> int:
                 "-p",
                 str(args.threads),
                 "--un-conc-gz",
-                str(prefix),
+                str(pair_pattern),
                 "-S",
                 "/dev/null",
             ],
         )
-        run_cmd(cmd)
-        r1_tmp = Path(f"{prefix}.1.gz")
-        r2_tmp = Path(f"{prefix}.2.gz")
-        if not r1_tmp.exists() or not r2_tmp.exists():
-            raise RuntimeError(f"Bowtie2 未产出去宿主文件: {r1_tmp}, {r2_tmp}")
+        completed = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        if completed.returncode != 0:
+            stderr_tail = "\n".join((completed.stderr or "").splitlines()[-20:])
+            raise RuntimeError(f"命令失败({completed.returncode}): {cmd}\n[bowtie2 stderr tail]\n{stderr_tail}")
+
+        pair = _locate_host_removed_pair(out_dir, base="host_removed")
+        if pair is None:
+            raise RuntimeError(
+                "Bowtie2 已执行但未识别到去宿主输出文件。"
+                f" out_dir={out_dir}. 请检查该目录中文件名，并反馈给 GMV。"
+            )
+        r1_tmp, r2_tmp = pair
         copy_or_decompress(r1_tmp, args.r1_out)
         copy_or_decompress(r2_tmp, args.r2_out)
     else:
