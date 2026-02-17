@@ -1,6 +1,3 @@
-from pathlib import Path
-
-
 USE_VIRSORTER = int(bool(CFG.get("tools", {}).get("enabled", {}).get("virsorter", True)))
 USE_GENOMAD = int(bool(CFG.get("tools", {}).get("enabled", {}).get("genomad", True)))
 
@@ -13,13 +10,17 @@ DB_GENOMAD = CFG.get("database", {}).get("genomad", "")
 DB_CHECKV = CFG.get("database", {}).get("checkv", "")
 
 
+def up_wild(step: str, file_name: str) -> str:
+    return str((WORK_ROOT / "upstream" / "{sample}" / step / file_name).resolve())
+
+
 rule preprocess:
     input:
         r1=lambda wc: sample_r1(wc.sample),
         r2=lambda wc: sample_r2(wc.sample),
     output:
-        r1=lambda wc: up_path(wc.sample, "1.preprocess", f"{wc.sample}_R1.fastq.gz"),
-        r2=lambda wc: up_path(wc.sample, "1.preprocess", f"{wc.sample}_R2.fastq.gz"),
+        r1=up_wild("1.preprocess", "{sample}_R1.fastq.gz"),
+        r2=up_wild("1.preprocess", "{sample}_R2.fastq.gz"),
     threads: threads_for("fastp")
     resources:
         mem_mb=mem_for("fastp"),
@@ -45,8 +46,8 @@ rule host_removal:
         r1=rules.preprocess.output.r1,
         r2=rules.preprocess.output.r2,
     output:
-        r1=lambda wc: up_path(wc.sample, "2.host_removed", f"{wc.sample}_R1.fastq.gz"),
-        r2=lambda wc: up_path(wc.sample, "2.host_removed", f"{wc.sample}_R2.fastq.gz"),
+        r1=up_wild("2.host_removed", "{sample}_R1.fastq.gz"),
+        r2=up_wild("2.host_removed", "{sample}_R2.fastq.gz"),
     threads: threads_for("bowtie2")
     resources:
         mem_mb=mem_for("bowtie2"),
@@ -72,7 +73,7 @@ rule assembly:
         r1=rules.host_removal.output.r1,
         r2=rules.host_removal.output.r2,
     output:
-        contigs=lambda wc: up_path(wc.sample, "3.assembly", "contigs.fa"),
+        contigs=up_wild("3.assembly", "contigs.fa"),
     threads: threads_for("megahit")
     resources:
         mem_mb=mem_for("megahit"),
@@ -94,7 +95,7 @@ rule vsearch_filter:
     input:
         contigs=rules.assembly.output.contigs,
     output:
-        contigs=lambda wc: up_path(wc.sample, "4.vsearch", "contigs.fa"),
+        contigs=up_wild("4.vsearch", "contigs.fa"),
     threads: threads_for("vsearch")
     resources:
         mem_mb=mem_for("vsearch"),
@@ -116,7 +117,7 @@ rule detect_virsorter:
     input:
         contigs=rules.vsearch_filter.output.contigs,
     output:
-        contigs=lambda wc: up_path(wc.sample, "5.virsorter", "contigs.fa"),
+        contigs=up_wild("5.virsorter", "contigs.fa"),
     threads: threads_for("virsorter")
     resources:
         mem_mb=mem_for("virsorter"),
@@ -126,7 +127,7 @@ rule detect_virsorter:
         enabled=USE_VIRSORTER,
         cmd=tool_cmd("virsorter"),
         db=DB_VIRSORTER,
-        work_dir=lambda wc: str((Path(up_path(wc.sample, "5.virsorter", "contigs.fa")).parent / "_run").resolve()),
+        work_dir=up_wild("5.virsorter", "_run"),
     shell:
         """
         {PYTHON_CMD} -m gmv.workflow.steps detect_virsorter \
@@ -144,7 +145,7 @@ rule detect_genomad:
     input:
         contigs=rules.vsearch_filter.output.contigs,
     output:
-        contigs=lambda wc: up_path(wc.sample, "6.genomad", "contigs.fa"),
+        contigs=up_wild("6.genomad", "contigs.fa"),
     threads: threads_for("genomad")
     resources:
         mem_mb=mem_for("genomad"),
@@ -153,7 +154,7 @@ rule detect_genomad:
         enabled=USE_GENOMAD,
         cmd=tool_cmd("genomad"),
         db=DB_GENOMAD,
-        work_dir=lambda wc: str((Path(up_path(wc.sample, "6.genomad", "contigs.fa")).parent / "_run").resolve()),
+        work_dir=up_wild("6.genomad", "_run"),
     shell:
         """
         {PYTHON_CMD} -m gmv.workflow.steps detect_genomad \
@@ -173,8 +174,8 @@ rule combine:
         genomad=rules.detect_genomad.output.contigs,
         fallback=rules.vsearch_filter.output.contigs,
     output:
-        contigs=lambda wc: up_path(wc.sample, "7.combine", "contigs.fa"),
-        info=lambda wc: up_path(wc.sample, "7.combine", "info.tsv"),
+        contigs=up_wild("7.combine", "contigs.fa"),
+        info=up_wild("7.combine", "info.tsv"),
     threads: 1
     resources:
         mem_mb=mem_for("project"),
@@ -199,8 +200,8 @@ rule checkv:
     input:
         contigs=rules.combine.output.contigs,
     output:
-        quality=lambda wc: up_path(wc.sample, "8.checkv", "quality_summary.tsv"),
-        contigs=lambda wc: up_path(wc.sample, "8.checkv", "contigs.fa"),
+        quality=up_wild("8.checkv", "quality_summary.tsv"),
+        contigs=up_wild("8.checkv", "contigs.fa"),
     threads: threads_for("checkv")
     resources:
         mem_mb=mem_for("checkv"),
@@ -209,7 +210,7 @@ rule checkv:
     params:
         cmd=tool_cmd("checkv"),
         db=DB_CHECKV,
-        work_dir=lambda wc: str((Path(up_path(wc.sample, "8.checkv", "contigs.fa")).parent / "_run").resolve()),
+        work_dir=up_wild("8.checkv", "_run"),
     shell:
         """
         {PYTHON_CMD} -m gmv.workflow.steps checkv \
@@ -228,7 +229,7 @@ rule high_quality:
         contigs=rules.checkv.output.contigs,
         quality=rules.checkv.output.quality,
     output:
-        contigs=lambda wc: up_path(wc.sample, "9.high_quality", "contigs.fa"),
+        contigs=up_wild("9.high_quality", "contigs.fa"),
     threads: 1
     resources:
         mem_mb=mem_for("project"),
@@ -246,8 +247,8 @@ rule busco_filter:
     input:
         contigs=rules.high_quality.output.contigs,
     output:
-        contigs=lambda wc: up_path(wc.sample, "10.busco_filter", "contigs.fa"),
-        metrics=lambda wc: up_path(wc.sample, "10.busco_filter", "metrics.json"),
+        contigs=up_wild("10.busco_filter", "contigs.fa"),
+        metrics=up_wild("10.busco_filter", "metrics.json"),
     threads: 1
     resources:
         mem_mb=mem_for("project"),
