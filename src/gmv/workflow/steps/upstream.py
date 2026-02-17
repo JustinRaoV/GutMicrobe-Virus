@@ -311,23 +311,28 @@ def _detect_virsorter(args: argparse.Namespace) -> int:
         copy_or_decompress(args.contigs_in, args.out_fa)
         return 0
 
-    if args.virsorter_cmd and args.db and Path(args.db).exists():
-        cmd = _render_cmd(
-            args.virsorter_cmd,
-            [
-                "run",
-                "-w",
-                args.work_dir,
-                "-i",
-                args.contigs_in,
-                "-j",
-                str(args.threads),
-                "-d",
-                args.db,
-                "--use-conda-off",
-                "all",
-            ],
-        )
+    if args.virsorter_cmd:
+        cmd_args = [
+            "run",
+            "-w",
+            args.work_dir,
+            "-i",
+            args.contigs_in,
+            "-j",
+            str(args.threads),
+        ]
+        db_path = (args.db or "").strip()
+        if db_path:
+            db_candidate = Path(db_path)
+            if db_candidate.exists():
+                cmd_args.extend(["-d", db_path])
+            else:
+                print(
+                    f"[GMV] virsorter db path not found, fallback to tool default DB: {db_path}",
+                    flush=True,
+                )
+        cmd_args.extend(["--use-conda-off", "all"])
+        cmd = _render_cmd(args.virsorter_cmd, cmd_args)
         run_cmd(cmd)
 
         work_dir = Path(args.work_dir)

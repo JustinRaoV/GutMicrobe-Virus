@@ -377,6 +377,7 @@ def validate_runtime(
 ) -> tuple[list[str], list[str]]:
     errors: list[str] = []
     warnings: list[str] = []
+    optional_db_keys = {"virsorter"}
 
     for key in ("raw_dir", "work_dir", "results_dir", "reports_dir"):
         value = cfg["execution"].get(key)
@@ -393,10 +394,14 @@ def validate_runtime(
 
     for db_name, db_path in cfg.get("database", {}).items():
         if not db_path:
-            warnings.append(f"数据库未设置: {db_name}")
+            if db_name not in optional_db_keys:
+                warnings.append(f"数据库未设置: {db_name}")
             continue
         if not Path(db_path).exists():
-            errors.append(f"数据库路径不存在: {db_name} -> {db_path}")
+            if db_name in optional_db_keys:
+                warnings.append(f"数据库路径不存在(将回退工具默认): {db_name} -> {db_path}")
+            else:
+                errors.append(f"数据库路径不存在: {db_name} -> {db_path}")
 
     def _bowtie2_prefix_exists(prefix: str) -> bool:
         base = Path(prefix)

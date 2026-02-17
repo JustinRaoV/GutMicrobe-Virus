@@ -45,3 +45,26 @@ def test_detect_virsorter_command_uses_offline_container_pattern(tmp_path: Path,
     assert tokens.index("-d") < tokens.index("all")
     assert tokens.index("--use-conda-off") < tokens.index("all")
     assert Path(args.out_fa).exists()
+
+
+def test_detect_virsorter_runs_without_d_when_db_missing(tmp_path: Path, monkeypatch) -> None:
+    args = _mk_args(tmp_path)
+    args.db = str(tmp_path / "missing-db")
+    called: list[str] = []
+
+    def _fake_run(cmd: str, cwd: str | None = None, log_path: str | None = None) -> None:
+        called.append(cmd)
+        work_dir = Path(args.work_dir)
+        work_dir.mkdir(parents=True, exist_ok=True)
+        (work_dir / "final-viral-combined.fa").write_text(">v2\nTGCA\n", encoding="utf-8")
+
+    monkeypatch.setattr(upstream, "run_cmd", _fake_run)
+    rc = upstream._detect_virsorter(args)
+
+    assert rc == 0
+    assert len(called) == 1
+    tokens = shlex.split(called[0])
+    assert "-d" not in tokens
+    assert "--use-conda-off" in tokens
+    assert "all" in tokens
+    assert Path(args.out_fa).exists()

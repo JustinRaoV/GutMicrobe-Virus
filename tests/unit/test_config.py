@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from gmv.config import ConfigError, discover_samples_from_input_dir, load_llm_settings, load_pipeline_config
+from gmv.config import ConfigError, discover_samples_from_input_dir, load_llm_settings, load_pipeline_config, validate_runtime
 
 
 def test_discover_samples_supports_r1_without_underscore(tmp_path: Path) -> None:
@@ -63,3 +63,37 @@ def test_pipeline_rejects_low_fudge(tmp_path: Path) -> None:
 
     with pytest.raises(ConfigError):
         load_pipeline_config(str(cfg))
+
+
+def test_validate_runtime_treats_virsorter_db_as_optional() -> None:
+    cfg = load_pipeline_config("tests/fixtures/minimal/config/pipeline.yaml")
+    cfg["database"]["virsorter"] = ""
+    samples = [
+        {
+            "sample": "alpha",
+            "mode": "reads",
+            "input1": str(Path("tests/fixtures/minimal/data/alpha_R1.fq").resolve()),
+            "input2": str(Path("tests/fixtures/minimal/data/alpha_R2.fq").resolve()),
+            "host": "",
+        }
+    ]
+    errors, warnings = validate_runtime(cfg, samples, strict=False)
+    assert not any("数据库未设置: virsorter" in item for item in warnings)
+    assert not any("virsorter" in item for item in errors)
+
+
+def test_validate_runtime_warns_not_errors_for_missing_virsorter_db_path() -> None:
+    cfg = load_pipeline_config("tests/fixtures/minimal/config/pipeline.yaml")
+    cfg["database"]["virsorter"] = str(Path("tests/fixtures/minimal/db/not-exist").resolve())
+    samples = [
+        {
+            "sample": "alpha",
+            "mode": "reads",
+            "input1": str(Path("tests/fixtures/minimal/data/alpha_R1.fq").resolve()),
+            "input2": str(Path("tests/fixtures/minimal/data/alpha_R2.fq").resolve()),
+            "host": "",
+        }
+    ]
+    errors, warnings = validate_runtime(cfg, samples, strict=False)
+    assert any("数据库路径不存在(将回退工具默认): virsorter" in item for item in warnings)
+    assert not any("数据库路径不存在: virsorter" in item for item in errors)
