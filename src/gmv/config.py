@@ -29,6 +29,7 @@ DEFAULT_PIPELINE_CONFIG: dict[str, Any] = {
         "reports_dir": "reports",
         "sample_sheet": "samples.tsv",
         "use_singularity": True,
+        "container_runtime": "auto",
         "offline": True,
     },
     "paths": {
@@ -420,10 +421,22 @@ def validate_runtime(
                     f"样本 {row['sample']} 指定 host={host}，但未找到可用 Bowtie2 index 前缀（base={root}）"
                 )
 
-    use_singularity = bool(cfg.get("execution", {}).get("use_singularity", True))
+    def _resolve_container_runtime(preferred: str | None) -> str:
+        pref = (preferred or "auto").strip()
+        if pref in {"", "auto"}:
+            return shutil.which("singularity") or shutil.which("apptainer") or ""
+        if Path(pref).exists():
+            return pref
+        return shutil.which(pref) or ""
+
+    execution_cfg = cfg.get("execution", {})
+    use_singularity = bool(execution_cfg.get("use_singularity", True))
     if use_singularity:
-        if strict and shutil.which("singularity") is None:
-            errors.append("未找到 singularity 可执行文件，请先 module load singularity")
+        runtime = _resolve_container_runtime(str(execution_cfg.get("container_runtime", "auto")))
+        if strict and not runtime:
+            errors.append("未找到容器运行时命令（singularity/apptainer）。请先 module load 或在 execution.container_runtime 指定绝对路径。")
+        if not strict and not runtime:
+            warnings.append("未检测到 singularity/apptainer；若直接运行将失败。建议先 module load 或设置 execution.container_runtime。")
         images = cfg.get("containers", {}).get("images", {})
         for tool_name, image_path in images.items():
             if not Path(image_path).exists():

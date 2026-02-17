@@ -8,6 +8,7 @@ execution:
   reports_dir: reports
   sample_sheet: samples.tsv
   use_singularity: true
+  container_runtime: auto
   offline: true
 
 paths:

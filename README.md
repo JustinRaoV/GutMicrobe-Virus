@@ -13,6 +13,13 @@ module load CentOS/7.9/singularity/3.9.2
 ./gmv run --config config/examples/cfff/pipeline.local.yaml --profile local --stage all --cores 8 --host hg38
 ```
 
+If your cluster provides `apptainer` instead of `singularity`, set:
+
+```yaml
+execution:
+  container_runtime: apptainer
+```
+
 ## One Entry, Four Commands
 
 - `gmv validate`
