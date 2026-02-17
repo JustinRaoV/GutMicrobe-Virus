@@ -4,6 +4,7 @@ import argparse
 import csv
 import re
 import shlex
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -190,7 +191,16 @@ def _assembly(args: argparse.Namespace) -> int:
     ensure_parent(args.contigs_out)
 
     if args.megahit_cmd:
-        out_dir = ensure_dir(Path(args.contigs_out).resolve().parent / "_megahit")
+        out_dir = Path(args.contigs_out).resolve().parent / "_megahit"
+        final_contigs = out_dir / "final.contigs.fa"
+
+        if out_dir.exists():
+            if final_contigs.exists():
+                copy_or_decompress(final_contigs, args.contigs_out)
+                return 0
+            shutil.rmtree(out_dir)
+
+        out_dir = ensure_dir(out_dir)
         cmd = _render_cmd(
             args.megahit_cmd,
             [
@@ -205,10 +215,9 @@ def _assembly(args: argparse.Namespace) -> int:
             ],
         )
         run_cmd(cmd)
-        candidate = out_dir / "final.contigs.fa"
-        if not candidate.exists():
-            raise RuntimeError(f"Megahit 未产出 final.contigs.fa: {candidate}")
-        copy_or_decompress(candidate, args.contigs_out)
+        if not final_contigs.exists():
+            raise RuntimeError(f"Megahit 未产出 final.contigs.fa: {final_contigs}")
+        copy_or_decompress(final_contigs, args.contigs_out)
         return 0
 
     # Fallback for local smoke tests without megahit.
