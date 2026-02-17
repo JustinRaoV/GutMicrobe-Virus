@@ -4,7 +4,13 @@ on:
   push:
     branches:
       - main
-      - codex/v3-destructive-simplify
+    paths:
+      - "docs/**"
+      - ".github/workflows/pages.yml"
+      - "README.md"
+  pull_request:
+    branches:
+      - main
     paths:
       - "docs/**"
       - ".github/workflows/pages.yml"
@@ -36,6 +42,7 @@ jobs:
           path: docs
 
   deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     environment:
