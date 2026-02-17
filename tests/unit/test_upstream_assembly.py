@@ -44,6 +44,9 @@ def test_assembly_cleans_stale_dir_then_runs(tmp_path: Path, monkeypatch) -> Non
     (out_dir / "stale.txt").write_text("x", encoding="utf-8")
 
     def _fake_run(cmd: str, cwd: str | None = None, log_path: str | None = None) -> None:
+        # MEGAHIT requires output directory to not exist before execution.
+        assert not out_dir.exists()
+        out_dir.mkdir(parents=True, exist_ok=True)
         (out_dir / "final.contigs.fa").write_text(">c2\nTGCA\n", encoding="utf-8")
 
     monkeypatch.setattr(upstream, "run_cmd", _fake_run)

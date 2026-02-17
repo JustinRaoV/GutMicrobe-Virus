@@ -237,7 +237,8 @@ def _assembly(args: argparse.Namespace) -> int:
                 return 0
             shutil.rmtree(out_dir)
 
-        out_dir = ensure_dir(out_dir)
+        # MEGAHIT requires `-o` directory to not exist before launch.
+        ensure_dir(out_dir.parent)
         cmd = _render_cmd(
             args.megahit_cmd,
             [
