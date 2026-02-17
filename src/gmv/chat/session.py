@@ -46,10 +46,10 @@ def _utc_stamp() -> str:
 def _tail_text(text: str, *, max_lines: int = 200, max_bytes: int = 20_000) -> str:
     if not text:
         return ""
-    b = text.encode("utf-8", errors="replace")
-    if len(b) > max_bytes:
-        b = b[-max_bytes:]
-        text = b.decode("utf-8", errors="replace")
+    data = text.encode("utf-8", errors="replace")
+    if len(data) > max_bytes:
+        data = data[-max_bytes:]
+        text = data.decode("utf-8", errors="replace")
     lines = text.splitlines()
     if len(lines) > max_lines:
         lines = lines[-max_lines:]
@@ -62,9 +62,9 @@ def _write_audit_line(path: Path, payload: Mapping[str, Any]) -> None:
         fh.write(json.dumps(payload, ensure_ascii=False) + "\n")
 
 
-def _write_artifact(path: Path, name: str, content: str) -> str:
-    path.mkdir(parents=True, exist_ok=True)
-    output = path / name
+def _write_artifact(dir_path: Path, name: str, content: str) -> str:
+    dir_path.mkdir(parents=True, exist_ok=True)
+    output = dir_path / name
     output.write_text(content, encoding="utf-8", errors="replace")
     return str(output)
 
@@ -78,14 +78,7 @@ def _confirm(prompt: str) -> bool:
 
 
 def _run_argv(argv: List[str], *, cwd: Path) -> Tuple[int, str, str]:
-    proc = subprocess.run(
-        argv,
-        cwd=str(cwd),
-        env=os.environ,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    proc = subprocess.run(argv, cwd=str(cwd), env=os.environ, capture_output=True, text=True, check=False)
     return int(proc.returncode), str(proc.stdout or ""), str(proc.stderr or "")
 
 
@@ -103,21 +96,9 @@ def _tail_file(path: Path, *, lines: int) -> str:
 
 
 def _parse_tool_calls(message: Mapping[str, Any]) -> List[Dict[str, Any]]:
-    tool_calls = message.get("tool_calls") or []
-    if isinstance(tool_calls, list):
-        return [item for item in tool_calls if isinstance(item, dict)]
-
-    content = message.get("content")
-    if not isinstance(content, str):
-        return []
-
-    try:
-        parsed = json.loads(content)
-    except Exception:
-        return []
-
-    if isinstance(parsed, dict) and isinstance(parsed.get("tool_calls"), list):
-        return [item for item in parsed["tool_calls"] if isinstance(item, dict)]
+    calls = message.get("tool_calls") or []
+    if isinstance(calls, list):
+        return [item for item in calls if isinstance(item, dict)]
     return []
 
 
@@ -127,7 +108,7 @@ def _mock_llm(messages: List[Mapping[str, Any]], *, config_path: str) -> Tuple[s
     content = str(last.get("content") or "")
 
     if role == "tool":
-        return ("已完成（mock）。", [])
+        return "已完成（mock）。", []
 
     if role == "user" and ("validate" in content.lower() or "校验" in content):
         return (
@@ -144,18 +125,18 @@ def _mock_llm(messages: List[Mapping[str, Any]], *, config_path: str) -> Tuple[s
             ],
         )
 
-    return ("mock 模式当前仅内置 validate 演示。", [])
+    return "mock 模式当前仅内置 validate 演示。", []
 
 
 def _render_tool_result(tool_name: str, result: ToolResult) -> str:
-    parts = [f"[tool] {tool_name} rc={result.returncode}"]
+    sections = [f"[tool] {tool_name} rc={result.returncode}"]
     if result.stdout_tail:
-        parts.extend(["[stdout_tail]", result.stdout_tail])
+        sections.extend(["[stdout_tail]", result.stdout_tail])
     if result.stderr_tail:
-        parts.extend(["[stderr_tail]", result.stderr_tail])
+        sections.extend(["[stderr_tail]", result.stderr_tail])
     if result.artifact_paths:
-        parts.extend(["[artifacts]", *result.artifact_paths])
-    return "\n".join(parts)
+        sections.extend(["[artifacts]", *result.artifact_paths])
+    return "\n".join(sections)
 
 
 def _system_prompt() -> str:
@@ -163,6 +144,61 @@ def _system_prompt() -> str:
         "你是 GMV ChatOps 助手。你只能通过 tools 执行动作，不能伪造执行结果。"
         "高风险动作必须确认。默认使用中文输出。"
     )
+
+
+def _build_argv(tool_name: str, args: Mapping[str, Any], *, config_path: str) -> Optional[List[str]]:
+    if tool_name == "gmv_validate":
+        argv = [sys.executable, "-m", "gmv.cli", "validate", "--config", str(args.get("config_path") or config_path)]
+        if bool(args.get("strict", False)):
+            argv.append("--strict")
+        return argv
+
+    if tool_name == "gmv_run":
+        argv = [
+            sys.executable,
+            "-m",
+            "gmv.cli",
+            "run",
+            "--config",
+            str(args.get("config_path") or config_path),
+            "--profile",
+            str(args.get("profile") or "local"),
+            "--stage",
+            str(args.get("stage") or "all"),
+        ]
+        if bool(args.get("dry_run", False)):
+            argv.append("--dry-run")
+        if args.get("cores") is not None:
+            argv.extend(["--cores", str(int(args["cores"]))])
+        return argv
+
+    if tool_name == "gmv_report":
+        argv = [sys.executable, "-m", "gmv.cli", "report", "--config", str(args.get("config_path") or config_path)]
+        if args.get("run_id"):
+            argv.extend(["--run-id", str(args["run_id"])])
+        return argv
+
+    if tool_name == "slurm_squeue":
+        argv = ["squeue", "-h", "-o", "%i|%T|%j|%u|%M|%D|%R", "--sort", "i"]
+        if args.get("user"):
+            argv.extend(["-u", str(args["user"])])
+        if args.get("name"):
+            argv.extend(["-n", str(args["name"])])
+        if args.get("states"):
+            argv.extend(["-t", str(args["states"])])
+        return argv
+
+    if tool_name == "slurm_sacct":
+        fields = args.get("fields") or ["JobID", "State", "ExitCode", "ElapsedRaw", "MaxRSS", "ReqMem", "AllocCPUS"]
+        return ["sacct", "-X", "-P", "-n", "-j", str(args.get("job_id", "")), "-o", ",".join([str(f) for f in fields])]
+
+    if tool_name == "slurm_scontrol_show_job":
+        return ["scontrol", "show", "job", str(args.get("job_id", ""))]
+
+    if tool_name == "slurm_scancel":
+        return ["scancel", str(args.get("job_id", ""))]
+
+    return None
 
 
 def _execute_tool(
@@ -175,36 +211,29 @@ def _execute_tool(
     dry_run_tools: bool,
     artifacts_dir: Path,
 ) -> ToolResult:
-    cleaned = sanitize_args(tool_name, args)
-    risk = tool_risk(tool_name, cleaned)
+    clean = sanitize_args(tool_name, args)
+    risk = tool_risk(tool_name, clean)
     repo_root = _repo_root()
 
-    preview = json.dumps({"tool": tool_name, "risk": risk, "args": cleaned}, ensure_ascii=False, indent=2)
-
+    preview = json.dumps({"tool": tool_name, "risk": risk, "args": clean}, ensure_ascii=False, indent=2)
     if risk == "high" and not auto_approve:
         if interactive:
             print("检测到高风险动作，需要确认后执行：")
             print(preview)
             if not _confirm("确认执行？[y/N] "):
-                return ToolResult(
-                    returncode=3,
-                    stdout_tail="",
-                    stderr_tail="用户取消执行高风险动作",
-                    artifact_paths=[],
-                    content_for_llm="USER_CANCELLED",
-                )
+                return ToolResult(3, "", "用户取消执行高风险动作", [], "USER_CANCELLED")
         else:
             artifact = _write_artifact(artifacts_dir, f"tool.{_utc_stamp()}.{tool_name}.preview.json", preview + "\n")
             return ToolResult(
-                returncode=3,
-                stdout_tail="",
-                stderr_tail="需要确认才能执行高风险动作（请使用交互模式或 --auto-approve）",
-                artifact_paths=[artifact],
-                content_for_llm="NEEDS_CONFIRMATION",
+                3,
+                "",
+                "需要确认才能执行高风险动作（请使用交互模式或 --auto-approve）",
+                [artifact],
+                "NEEDS_CONFIRMATION",
             )
 
     if tool_name == "tail_file":
-        output = _tail_file(Path(str(cleaned.get("path", ""))).expanduser(), lines=int(cleaned.get("lines", 200)))
+        output = _tail_file(Path(str(clean.get("path", ""))).expanduser(), lines=int(clean.get("lines", 200)))
         return ToolResult(0, _tail_text(output), "", [], output)
 
     if tool_name == "show_latest_snakemake_log":
@@ -213,58 +242,12 @@ def _execute_tool(
         if not logs:
             output = f"ERROR: no snakemake logs found under {log_dir}"
             return ToolResult(1, _tail_text(output), "", [], output)
-        last = logs[-1]
-        output = f"==> {last}\n" + _tail_file(last, lines=int(cleaned.get("lines", 200)))
+        output = f"==> {logs[-1]}\n" + _tail_file(logs[-1], lines=int(clean.get("lines", 200)))
         return ToolResult(0, _tail_text(output), "", [], output)
 
-    if tool_name == "gmv_validate":
-        argv = [sys.executable, "-m", "gmv.cli", "validate", "--config", str(cleaned.get("config_path") or config_path)]
-        if bool(cleaned.get("strict", False)):
-            argv.append("--strict")
-    elif tool_name == "gmv_run":
-        argv = [
-            sys.executable,
-            "-m",
-            "gmv.cli",
-            "run",
-            "--config",
-            str(cleaned.get("config_path") or config_path),
-            "--profile",
-            str(cleaned.get("profile") or "local"),
-            "--stage",
-            str(cleaned.get("stage") or "all"),
-        ]
-        if bool(cleaned.get("dry_run", False)):
-            argv.append("--dry-run")
-        if cleaned.get("cores") is not None:
-            argv.extend(["--cores", str(int(cleaned["cores"]))])
-    elif tool_name == "gmv_report":
-        argv = [sys.executable, "-m", "gmv.cli", "report", "--config", str(cleaned.get("config_path") or config_path)]
-        if cleaned.get("run_id"):
-            argv.extend(["--run-id", str(cleaned["run_id"])])
-    elif tool_name == "slurm_squeue":
-        argv = ["squeue", "-h", "-o", "%i|%T|%j|%u|%M|%D|%R", "--sort", "i"]
-        if cleaned.get("user"):
-            argv.extend(["-u", str(cleaned["user"])])
-        if cleaned.get("name"):
-            argv.extend(["-n", str(cleaned["name"])])
-        if cleaned.get("states"):
-            argv.extend(["-t", str(cleaned["states"])])
-    elif tool_name == "slurm_sacct":
-        fields = cleaned.get("fields") or ["JobID", "State", "ExitCode", "ElapsedRaw", "MaxRSS", "ReqMem", "AllocCPUS"]
-        argv = ["sacct", "-X", "-P", "-n", "-j", str(cleaned.get("job_id", "")), "-o", ",".join([str(f) for f in fields])]
-    elif tool_name == "slurm_scontrol_show_job":
-        argv = ["scontrol", "show", "job", str(cleaned.get("job_id", ""))]
-    elif tool_name == "slurm_scancel":
-        argv = ["scancel", str(cleaned.get("job_id", ""))]
-    else:
-        return ToolResult(
-            returncode=2,
-            stdout_tail="",
-            stderr_tail=f"未知工具: {tool_name}",
-            artifact_paths=[],
-            content_for_llm=f"ERROR: unknown tool: {tool_name}",
-        )
+    argv = _build_argv(tool_name, clean, config_path=config_path)
+    if argv is None:
+        return ToolResult(2, "", f"未知工具: {tool_name}", [], f"ERROR: unknown tool: {tool_name}")
 
     if dry_run_tools:
         text = f"DRY_RUN_TOOL: would run argv={argv} cwd={repo_root}"
@@ -275,12 +258,28 @@ def _execute_tool(
     artifact_content = f"argv={argv}\n\n--- stdout ---\n{stdout}\n\n--- stderr ---\n{stderr}\n"
     artifact = _write_artifact(artifacts_dir, f"tool.{_utc_stamp()}.{tool_name}.log.txt", artifact_content)
     return ToolResult(
-        returncode=rc,
-        stdout_tail=_tail_text(stdout),
-        stderr_tail=_tail_text(stderr),
-        artifact_paths=[artifact],
-        content_for_llm=_tail_text(stdout + ("\n" + stderr if stderr else "")),
+        rc,
+        _tail_text(stdout),
+        _tail_text(stderr),
+        [artifact],
+        _tail_text(stdout + ("\n" + stderr if stderr else "")),
     )
+
+
+def _assistant_response(
+    messages: List[Dict[str, Any]],
+    *,
+    config_path: str,
+    settings: Optional[LLMConfig],
+    tools: List[Mapping[str, Any]],
+    mock_mode: bool,
+) -> Tuple[str, List[Dict[str, Any]]]:
+    if mock_mode:
+        return _mock_llm(messages, config_path=config_path)
+
+    response = chat_completions(settings=settings, messages=messages, tools=tools, tool_choice="auto")
+    message = response.assistant_message()
+    return str(message.get("content") or ""), _parse_tool_calls(message)
 
 
 def run_chat(
@@ -299,10 +298,10 @@ def run_chat(
     repo_root = _repo_root()
 
     run_id = str(config.get("execution", {}).get("run_id", "default-run"))
-    default_log_root = Path(config.get("execution", {}).get("results_dir", "results"))
-    if not default_log_root.is_absolute():
-        default_log_root = (repo_root / default_log_root).resolve()
-    default_log_dir = default_log_root / run_id / "agent" / "chat"
+    results_root = Path(config.get("execution", {}).get("results_dir", "results"))
+    if not results_root.is_absolute():
+        results_root = (repo_root / results_root).resolve()
+    default_log_dir = results_root / run_id / "agent" / "chat"
     session_dir = Path(log_dir).expanduser().resolve() if log_dir else default_log_dir
     session_dir.mkdir(parents=True, exist_ok=True)
 
@@ -315,12 +314,7 @@ def run_chat(
 
     settings: Optional[LLMConfig] = None
     if not mock_mode:
-        settings = load_llm_config(
-            base_url=base_url,
-            model=model,
-            api_key_env=api_key_env,
-            llm_config=llm_config,
-        )
+        settings = load_llm_config(base_url=base_url, model=model, api_key_env=api_key_env, llm_config=llm_config)
 
     tools = openai_tools()
 
@@ -329,32 +323,29 @@ def run_chat(
         _write_audit_line(audit_file, {"timestamp": _utc_iso(), "role": "user", "content": user_text})
 
         for _ in range(max_steps):
-            if mock_mode:
-                assistant_text, tool_calls = _mock_llm(messages, config_path=config_path)
-                assistant_msg: Dict[str, Any] = {"role": "assistant", "content": assistant_text, "tool_calls": tool_calls}
-            else:
-                response = chat_completions(settings=settings, messages=messages, tools=tools, tool_choice="auto")
-                assistant_msg = response.assistant_message()
+            assistant_text, tool_calls = _assistant_response(
+                messages,
+                config_path=config_path,
+                settings=settings,
+                tools=tools,
+                mock_mode=mock_mode,
+            )
 
-            assistant_text = str(assistant_msg.get("content") or "")
-            tool_calls = _parse_tool_calls(assistant_msg)
-
-            msg_record: Dict[str, Any] = {"role": "assistant", "content": assistant_text}
+            msg_payload: Dict[str, Any] = {"role": "assistant", "content": assistant_text}
             if tool_calls:
-                msg_record["tool_calls"] = tool_calls
-            messages.append(msg_record)
+                msg_payload["tool_calls"] = tool_calls
+            messages.append(msg_payload)
             _write_audit_line(audit_file, {"timestamp": _utc_iso(), "role": "assistant", "content": assistant_text, "tool_calls": tool_calls})
 
             if assistant_text:
                 print(assistant_text)
-
             if not tool_calls:
                 return 0
 
             for call in tool_calls:
-                function_data = call.get("function") if isinstance(call.get("function"), dict) else {}
-                tool_name = str(function_data.get("name") or "")
-                raw_args = function_data.get("arguments") or "{}"
+                fn = call.get("function") if isinstance(call.get("function"), dict) else {}
+                tool_name = str(fn.get("name") or "")
+                raw_args = fn.get("arguments") or "{}"
                 try:
                     parsed_args = json.loads(raw_args) if isinstance(raw_args, str) else dict(raw_args)
                 except Exception:
@@ -372,7 +363,6 @@ def run_chat(
 
                 summary = _render_tool_result(tool_name, result)
                 print(summary)
-
                 _write_audit_line(
                     audit_file,
                     {

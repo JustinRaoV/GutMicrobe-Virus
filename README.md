@@ -17,6 +17,7 @@ PYTHONPATH=src python -m gmv.cli run --config config/pipeline.yaml --profile loc
 ## 文档入口
 
 - 详细前端说明站点：[`docs/index.html`](docs/index.html)
+- 文档导航：[`docs/README.md`](docs/README.md)
 - 服务器运行手册：[`docs/SERVER_RUNBOOK.md`](docs/SERVER_RUNBOOK.md)
 - 架构说明：[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 
@@ -68,4 +69,12 @@ make test-release
 
 ## GitHub Pages
 
-仓库设置中启用 Pages，Source 选择 `main` 分支 `/docs` 目录即可发布说明站点。
+推荐使用仓库内置工作流自动部署：
+
+1. 打开 `Settings -> Pages`
+2. `Build and deployment -> Source` 选择 `GitHub Actions`
+3. 推送 `main` 分支后自动发布
+
+说明：
+- 若你还在特性分支（非 `main`）开发，线上主站点 URL 不会立即反映最新内容。
+- 仓库根目录已提供 `index.html` 重定向到文档站点，降低配置不一致导致的空白页问题。
