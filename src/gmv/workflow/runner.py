@@ -94,6 +94,13 @@ def run_pipeline(
     pair_r2: str,
 ) -> dict[str, Any]:
     cfg = load_pipeline_config(config_path)
+    project_root = _project_root().resolve()
+    config_resolved = Path(config_path).expanduser().resolve()
+    cfg.setdefault("_meta", {})
+    cfg["_meta"]["project_root"] = str(project_root)
+    cfg["_meta"]["config_path"] = str(config_resolved)
+    cfg["_meta"]["config_dir"] = str(config_resolved.parent)
+
     if profile:
         cfg["execution"]["profile"] = profile
 
@@ -132,7 +139,7 @@ def run_pipeline(
         for item in warnings:
             print(f"  - {item}")
 
-    completed = subprocess.run(cmd, cwd=str(_project_root()))
+    completed = subprocess.run(cmd, cwd=str(project_root))
     if completed.returncode != 0:
         raise SystemExit(completed.returncode)
 

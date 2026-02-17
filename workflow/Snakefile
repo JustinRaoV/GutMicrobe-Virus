@@ -7,9 +7,18 @@ import sys
 from pathlib import Path
 
 
-WORKFLOW_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = WORKFLOW_DIR.parent
 CFG = config
+META = CFG.get("_meta", {}) if isinstance(CFG, dict) else {}
+
+if META.get("project_root"):
+    PROJECT_ROOT = Path(str(META["project_root"])).expanduser().resolve()
+else:
+    try:
+        PROJECT_ROOT = Path(workflow.basedir).resolve()
+    except Exception:
+        PROJECT_ROOT = Path.cwd().resolve()
+
+WORKFLOW_DIR = PROJECT_ROOT / "workflow"
 
 
 def _abs_path(raw: str | Path) -> Path:
@@ -174,7 +183,11 @@ def tool_cmd(tool: str) -> str:
     return f"singularity exec {BIND_FLAGS} {shlex.quote(str(image))} {binary}"
 
 
-PYTHON_CMD = f"PYTHONPATH={shlex.quote(str((PROJECT_ROOT / 'src').resolve()))} {shlex.quote(sys.executable)}"
+PYTHON_SRC = (PROJECT_ROOT / "src").resolve()
+if not PYTHON_SRC.exists():
+    PYTHON_SRC = (Path.cwd() / "src").resolve()
+
+PYTHON_CMD = f"PYTHONPATH={shlex.quote(str(PYTHON_SRC))} {shlex.quote(sys.executable)}"
 
 
 def up_path(sample: str, step: str, file_name: str) -> str:
