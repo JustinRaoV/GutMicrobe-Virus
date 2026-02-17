@@ -92,6 +92,7 @@ def run_pipeline(
     sample_sheet: str | None,
     pair_r1: str,
     pair_r2: str,
+    host: str | None = None,
 ) -> dict[str, Any]:
     cfg = load_pipeline_config(config_path)
     project_root = _project_root().resolve()
@@ -113,6 +114,7 @@ def run_pipeline(
         sample_sheet=sample_sheet,
         pair_r1=pair_r1,
         pair_r2=pair_r2,
+        host=host,
     )
 
     errors, warnings = validate_runtime(cfg, samples, strict=False)

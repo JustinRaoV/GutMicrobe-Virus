@@ -47,6 +47,7 @@
         `--profile ${profile.value}`,
         `--stage ${stage.value}`,
         `--cores ${cores.value || 8}`,
+        "--host hg38",
       ].join(" ");
       generated.innerHTML = `<code>${cmd}</code>`;
     });

@@ -234,7 +234,12 @@ def _pair_tokens(primary_r1: str, primary_r2: str) -> list[tuple[str, str]]:
     return ordered
 
 
-def discover_samples_from_input_dir(input_dir: str, pair_r1: str = "_R1", pair_r2: str = "_R2") -> list[dict[str, str]]:
+def discover_samples_from_input_dir(
+    input_dir: str,
+    pair_r1: str = "_R1",
+    pair_r2: str = "_R2",
+    default_host: str = "",
+) -> list[dict[str, str]]:
     data_dir = Path(input_dir).expanduser().resolve()
     if not data_dir.exists() or not data_dir.is_dir():
         raise ConfigError(f"输入目录不存在: {data_dir}")
@@ -271,7 +276,7 @@ def discover_samples_from_input_dir(input_dir: str, pair_r1: str = "_R1", pair_r
                 "mode": "reads",
                 "input1": str((data_dir / name).resolve()),
                 "input2": str((data_dir / r2_name).resolve()),
-                "host": "",
+                "host": default_host.strip(),
             }
             break
 
@@ -334,13 +339,19 @@ def prepare_sample_sheet(
     sample_sheet: str | None,
     pair_r1: str,
     pair_r2: str,
+    host: str | None = None,
 ) -> tuple[str, list[dict[str, str]], bool]:
     if input_dir and sample_sheet:
         raise ConfigError("--input-dir 与 --sample-sheet 只能二选一")
 
     generated = False
     if input_dir:
-        records = discover_samples_from_input_dir(input_dir, pair_r1=pair_r1, pair_r2=pair_r2)
+        records = discover_samples_from_input_dir(
+            input_dir,
+            pair_r1=pair_r1,
+            pair_r2=pair_r2,
+            default_host=(host or ""),
+        )
         run_id = cfg["execution"]["run_id"]
         out_sheet = Path(cfg["execution"]["raw_dir"]) / run_id / "samples.auto.tsv"
         sheet_path = write_sample_sheet(records, str(out_sheet))
@@ -350,6 +361,9 @@ def prepare_sample_sheet(
         if not sheet_path:
             raise ConfigError("缺少 sample_sheet。请提供 --input-dir 或 --sample-sheet")
         records = load_sample_sheet(sheet_path)
+        if host:
+            for row in records:
+                row["host"] = host.strip()
 
     cfg["execution"]["sample_sheet"] = str(Path(sheet_path).expanduser().resolve())
     return cfg["execution"]["sample_sheet"], records, generated

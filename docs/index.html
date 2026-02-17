@@ -46,20 +46,20 @@ cd GutMicrobe-Virus
 module load CentOS/7.9/Anaconda3/24.5.0
 module load CentOS/7.9/singularity/3.9.2
 ./gmv validate --config config/examples/cfff/pipeline.local.yaml
-./gmv run --config config/examples/cfff/pipeline.local.yaml --profile local --stage all --cores 8</code></pre>
+./gmv run --config config/examples/cfff/pipeline.local.yaml --profile local --stage all --cores 8 --host hg38</code></pre>
             <button class="copy-btn" data-copy>复制命令</button>
           </article>
 
           <article class="panel" data-panel="two-stage">
-            <pre><code>./gmv run --config config/examples/cfff/pipeline.local.yaml --profile local --stage upstream --cores 16
-./gmv run --config config/examples/cfff/pipeline.local.yaml --profile local --stage project --cores 16
+            <pre><code>./gmv run --config config/examples/cfff/pipeline.local.yaml --profile local --stage upstream --cores 16 --host hg38
+./gmv run --config config/examples/cfff/pipeline.local.yaml --profile local --stage project --cores 16 --host hg38
 ./gmv report --config config/examples/cfff/pipeline.local.yaml</code></pre>
             <button class="copy-btn" data-copy>复制命令</button>
           </article>
 
           <article class="panel" data-panel="slurm">
-            <pre><code>./gmv run --config config/examples/cfff/pipeline.local.yaml --profile slurm --stage upstream --cores 300
-./gmv run --config config/examples/cfff/pipeline.local.yaml --profile slurm --stage project --cores 64
+            <pre><code>./gmv run --config config/examples/cfff/pipeline.local.yaml --profile slurm --stage upstream --cores 300 --host hg38
+./gmv run --config config/examples/cfff/pipeline.local.yaml --profile slurm --stage project --cores 64 --host hg38
 squeue -u $USER</code></pre>
             <button class="copy-btn" data-copy>复制命令</button>
           </article>
@@ -126,7 +126,7 @@ api_key_env: GMV_API_KEY</code></pre>
           </label>
           <button type="button" id="build">生成命令</button>
         </form>
-        <pre id="generated"><code>./gmv run --config config/examples/cfff/pipeline.local.yaml --profile local --stage all --cores 8</code></pre>
+        <pre id="generated"><code>./gmv run --config config/examples/cfff/pipeline.local.yaml --profile local --stage all --cores 8 --host hg38</code></pre>
       </section>
 
       <section id="outputs" class="card">

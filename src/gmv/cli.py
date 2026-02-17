@@ -22,6 +22,7 @@ def cmd_validate(args: argparse.Namespace) -> int:
             sample_sheet=args.sample_sheet,
             pair_r1=args.pair_r1,
             pair_r2=args.pair_r2,
+            host=args.host,
         )
         errors, warnings = validate_runtime(cfg, samples, strict=bool(args.strict))
     except ConfigError as exc:
@@ -58,6 +59,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             sample_sheet=args.sample_sheet,
             pair_r1=args.pair_r1,
             pair_r2=args.pair_r2,
+            host=args.host,
         )
     except ConfigError as exc:
         print(f"ERROR: {exc}")
@@ -98,6 +100,7 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("--sample-sheet", default=None)
     validate.add_argument("--pair-r1", default="_R1")
     validate.add_argument("--pair-r2", default="_R2")
+    validate.add_argument("--host", default="", help="default host label for all samples (e.g. hg38)")
     validate.add_argument("--strict", action="store_true")
     validate.set_defaults(handler=cmd_validate)
 
@@ -107,6 +110,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--sample-sheet", default=None)
     run.add_argument("--pair-r1", default="_R1")
     run.add_argument("--pair-r2", default="_R2")
+    run.add_argument("--host", default="", help="default host label for all samples (e.g. hg38)")
     run.add_argument("--profile", choices=["local", "slurm"], default="local")
     run.add_argument("--stage", choices=["upstream", "project", "all"], default="all")
     run.add_argument("--cores", type=int, default=None)

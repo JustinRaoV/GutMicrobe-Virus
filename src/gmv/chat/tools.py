@@ -47,6 +47,7 @@ def _tool_validate(args: dict[str, Any]) -> dict[str, Any]:
         sample_sheet=args.get("sample_sheet"),
         pair_r1=args.get("pair_r1", "_R1"),
         pair_r2=args.get("pair_r2", "_R2"),
+        host=args.get("host", ""),
     )
     errors, warnings = validate_runtime(cfg, samples, strict=bool(args.get("strict", False)))
     return {
@@ -69,6 +70,7 @@ def _tool_run(args: dict[str, Any]) -> dict[str, Any]:
         sample_sheet=args.get("sample_sheet"),
         pair_r1=args.get("pair_r1", "_R1"),
         pair_r2=args.get("pair_r2", "_R2"),
+        host=args.get("host", ""),
     )
     return {"returncode": 0, **result}
 
@@ -142,6 +144,7 @@ def tool_registry() -> dict[str, ChatTool]:
                     "sample_sheet": {"type": "string"},
                     "pair_r1": {"type": "string"},
                     "pair_r2": {"type": "string"},
+                    "host": {"type": "string"},
                     "strict": {"type": "boolean"},
                 },
                 "required": ["config_path"],
@@ -164,6 +167,7 @@ def tool_registry() -> dict[str, ChatTool]:
                     "sample_sheet": {"type": "string"},
                     "pair_r1": {"type": "string"},
                     "pair_r2": {"type": "string"},
+                    "host": {"type": "string"},
                 },
                 "required": ["config_path"],
             },

@@ -10,7 +10,7 @@ cd GutMicrobe-Virus
 module load CentOS/7.9/Anaconda3/24.5.0
 module load CentOS/7.9/singularity/3.9.2
 ./gmv validate --config config/examples/cfff/pipeline.local.yaml
-./gmv run --config config/examples/cfff/pipeline.local.yaml --profile local --stage all --cores 8
+./gmv run --config config/examples/cfff/pipeline.local.yaml --profile local --stage all --cores 8 --host hg38
 ```
 
 ## One Entry, Four Commands
@@ -32,7 +32,7 @@ Examples:
 ```bash
 ./gmv run --config config/examples/cfff/pipeline.local.yaml \
   --input-dir /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/workflow/data \
-  --profile local --stage all --cores 8
+  --profile local --stage all --cores 8 --host hg38
 ```
 
 ```bash
