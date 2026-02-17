@@ -16,8 +16,8 @@ class ChatOpsIntegrationTests(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, msg=proc.stdout + proc.stderr)
         self.assertIn("gmv_validate", proc.stdout + proc.stderr)
         self.assertIn("rc=0", proc.stdout + proc.stderr)
+        self.assertIn("audit_log:", proc.stdout + proc.stderr)
 
 
 if __name__ == "__main__":
     unittest.main()
-

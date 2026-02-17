@@ -1,4 +1,4 @@
-"""OpenAI-compatible HTTP client (standard library only)."""
+"""OpenAI-compatible Chat Completions client (stdlib only)."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Mapping, Optional
 from urllib.parse import urljoin
 
-from gmv.ai.settings import LLMSettings
+from gmv.config import LLMConfig
 
 
 @dataclass(frozen=True)
@@ -26,18 +26,17 @@ class ChatCompletionResponse:
 
 
 def _build_chat_url(base_url: str) -> str:
-    # Accept either base_url=/v1 or a full endpoint url.
-    if base_url.rstrip("/").endswith("/chat/completions"):
-        return base_url.rstrip("/")
-    # Make sure we land on /v1/chat/completions for common deployments.
-    if base_url.rstrip("/").endswith("/v1"):
-        return base_url.rstrip("/") + "/chat/completions"
-    return urljoin(base_url.rstrip("/") + "/", "chat/completions").rstrip("/")
+    normalized = base_url.rstrip("/")
+    if normalized.endswith("/chat/completions"):
+        return normalized
+    if normalized.endswith("/v1"):
+        return normalized + "/chat/completions"
+    return urljoin(normalized + "/", "chat/completions").rstrip("/")
 
 
 def chat_completions(
     *,
-    settings: LLMSettings,
+    settings: LLMConfig,
     messages: List[Mapping[str, Any]],
     tools: Optional[List[Mapping[str, Any]]] = None,
     tool_choice: Optional[Any] = "auto",
@@ -45,7 +44,6 @@ def chat_completions(
     max_tokens: Optional[int] = None,
 ) -> ChatCompletionResponse:
     url = _build_chat_url(settings.base_url)
-
     payload: Dict[str, Any] = {
         "model": settings.model,
         "messages": list(messages),
@@ -66,7 +64,7 @@ def chat_completions(
 
     context = None
     if not settings.verify_tls:
-        context = ssl._create_unverified_context()  # noqa: SLF001 (explicitly opted-out by user)
+        context = ssl._create_unverified_context()  # noqa: SLF001 - user opted out.
 
     req = urllib.request.Request(url=url, data=data, headers=headers, method="POST")
     try:
@@ -85,4 +83,3 @@ def chat_completions(
         raise RuntimeError(f"LLM HTTPError {exc.code}: {body[:2000]}") from exc
     except urllib.error.URLError as exc:
         raise RuntimeError(f"LLM URLError: {exc}") from exc
-

@@ -1,29 +1,24 @@
-# v1 -> v2 迁移指南
+# v3 破坏性变更声明
 
-## 变更性质
+v3 是不兼容重构版本，重点是代码结构精简与维护成本控制。
 
-v2 为破坏式重构，不保留 v1 入口脚本兼容层。
-
-## 已退役入口
-
-- `run_upstream.py`
-- `make.py`
-- `viruslib_pipeline.py`
-
-## 新入口
-
-统一使用 `gmv` CLI：
+## 保留命令
 
 - `gmv validate`
-- `gmv profile`
 - `gmv run`
 - `gmv report`
+- `gmv chat`
+
+## 已移除命令
+
+- `gmv profile`
 - `gmv agent replay`
+- `gmv agent harvest`
+- `gmv agent chat`
 
-## 迁移步骤
+## 迁移建议
 
-1. 将旧配置迁移到 `config/pipeline.yaml` 和 `config/containers.yaml`。
-2. 将批量脚本逻辑迁移到 `sample_sheet` + `profile`（local/slurm）。
-3. 使用 `gmv validate` 先做环境体检。
-4. 用 `gmv run --dry-run` 确认 DAG。
-5. 正式运行并用 `gmv report` 生成报告。
+1. 统一使用 `config/pipeline.yaml`。
+2. 先执行 `gmv validate`。
+3. 用 `gmv run --dry-run --stage all` 检查 DAG。
+4. 通过 `gmv chat` 做对话式操作与审计。

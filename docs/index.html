@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GMV v3 使用说明</title>
+    <link rel="stylesheet" href="assets/style.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <p class="badge">GMV v3</p>
+      <h1>GutMicrobeVirus 检测系统（Offline + Snakemake + Singularity + SLURM + ChatOps）</h1>
+      <p class="lead">
+        这是一个面向服务器离线环境的病毒组检测系统。核心是可控成本与可复现实验：
+        上游样本并发、项目级单任务汇总、容器化执行、对话式任务提交与监控。
+      </p>
+      <div class="hero-actions">
+        <a href="../README.md" class="btn btn-secondary">README</a>
+        <a href="#quickstart" class="btn">30 秒快速开始</a>
+      </div>
+    </header>
+
+    <main class="container">
+      <section id="positioning" class="card">
+        <h2>项目定位</h2>
+        <div class="grid two">
+          <div>
+            <h3>适用场景</h3>
+            <ul>
+              <li>长期断网服务器</li>
+              <li>Singularity 3.x + SLURM 集群</li>
+              <li>300+ 样本批量检测</li>
+              <li>可产出论文级报告与图表</li>
+            </ul>
+          </div>
+          <div>
+            <h3>v3 关键原则</h3>
+            <ul>
+              <li>破坏性精简，不保留旧 CLI 兼容层</li>
+              <li>单入口 `gmv`，仅 4 个主命令</li>
+              <li>白名单 ChatOps，默认安全确认</li>
+              <li>纯静态文档站点，可离线打开</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="quickstart" class="card">
+        <h2>快速开始</h2>
+        <div class="tabs" data-tabs>
+          <button class="tab active" data-tab="local">Local 直跑</button>
+          <button class="tab" data-tab="two-stage">Two-Stage</button>
+          <button class="tab" data-tab="slurm">SLURM</button>
+        </div>
+
+        <div class="tab-panels">
+          <article class="tab-panel active" data-panel="local">
+            <h3>本地验证 + 干跑</h3>
+            <div class="cmd-block">
+              <pre><code>PYTHONPATH=src python -m gmv.cli validate --config config/pipeline.yaml</code></pre>
+              <button class="copy-btn">复制</button>
+            </div>
+            <div class="cmd-block">
+              <pre><code>PYTHONPATH=src python -m gmv.cli run --config config/pipeline.yaml --profile local --dry-run --stage all</code></pre>
+              <button class="copy-btn">复制</button>
+            </div>
+          </article>
+
+          <article class="tab-panel" data-panel="two-stage">
+            <h3>两阶段执行（推荐大项目）</h3>
+            <div class="cmd-block">
+              <pre><code>PYTHONPATH=src python -m gmv.cli run --config config/pipeline.yaml --profile local --stage upstream</code></pre>
+              <button class="copy-btn">复制</button>
+            </div>
+            <div class="cmd-block">
+              <pre><code>PYTHONPATH=src python -m gmv.cli run --config config/pipeline.yaml --profile local --stage project</code></pre>
+              <button class="copy-btn">复制</button>
+            </div>
+          </article>
+
+          <article class="tab-panel" data-panel="slurm">
+            <h3>SLURM 提交</h3>
+            <div class="cmd-block">
+              <pre><code>module load CentOS/7.9/Anaconda3/24.5.0 && module load CentOS/7.9/singularity/3.9.2</code></pre>
+              <button class="copy-btn">复制</button>
+            </div>
+            <div class="cmd-block">
+              <pre><code>PYTHONPATH=src python -m gmv.cli run --config config/pipeline.yaml --profile slurm --stage upstream</code></pre>
+              <button class="copy-btn">复制</button>
+            </div>
+            <div class="cmd-block">
+              <pre><code>PYTHONPATH=src python -m gmv.cli run --config config/pipeline.yaml --profile slurm --stage project</code></pre>
+              <button class="copy-btn">复制</button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="config" class="card">
+        <h2>配置详解</h2>
+        <h3>1) pipeline 配置：`config/pipeline.yaml`</h3>
+        <div class="cmd-block">
+          <pre><code>execution:
+  run_id: demo-run
+  profile: local
+  sample_sheet: raw/samples.tsv
+  use_singularity: true
+  mock_mode: false
+
+containers:
+  mapping_file: config/containers.yaml
+
+tools:
+  enabled:
+    virsorter: true
+    genomad: true
+    coverm: true
+
+resources:
+  default_threads: 8
+  threads: {}
+  limits: {}
+  estimation:
+    enabled: true
+    fudge: 1.2
+    overrides: {}
+
+database:
+  checkv: /path/to/db/checkv
+  busco: /path/to/db/busco</code></pre>
+          <button class="copy-btn">复制</button>
+        </div>
+
+        <h3>2) LLM 配置：`~/.config/gmv/llm.yaml`</h3>
+        <div class="cmd-block">
+          <pre><code>base_url: "https://api.openai.com/v1"
+model: "gpt-4o-mini"
+api_key_env: "GMV_API_KEY"
+timeout_s: 60
+verify_tls: true</code></pre>
+          <button class="copy-btn">复制</button>
+        </div>
+
+        <h3>3) 环境变量覆盖</h3>
+        <div class="cmd-block">
+          <pre><code>export GMV_API_KEY="your_api_key"
+export GMV_BASE_URL="https://api.openai.com/v1"
+export GMV_MODEL="gpt-4o-mini"</code></pre>
+          <button class="copy-btn">复制</button>
+        </div>
+      </section>
+
+      <section id="strategy" class="card">
+        <h2>运行策略（并发与资源估算）</h2>
+        <div class="grid two">
+          <div>
+            <h3>上游并发</h3>
+            <p>按样本拆分规则并发，适合批量数据吞吐。支持 `resources.limits` 对重 IO 步骤限流，避免数据库打爆。</p>
+          </div>
+          <div>
+            <h3>项目级单任务</h3>
+            <p>病毒库构建 + 下游丰度 + agent 决策日志可在 project 阶段集中执行，适合控制调度开销。</p>
+          </div>
+          <div>
+            <h3>资源估算</h3>
+            <p>根据输入体量估算 `mem_mb/runtime`，并用 `fudge` 保守放大，减少 OOM 与过量申请。</p>
+          </div>
+          <div>
+            <h3>重试策略</h3>
+            <p>SLURM profile 推荐仅保留一次重试用于文件系统抖动，不默认做“失败后无限扩资源”。</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="chatops" class="card">
+        <h2>ChatOps 使用</h2>
+        <p>默认仅开放白名单工具。高风险动作（如真实 `gmv run` 与 `scancel`）会二次确认，除非显式 `--auto-approve`。</p>
+
+        <div class="cmd-block">
+          <pre><code>PYTHONPATH=src python -m gmv.cli chat --config config/pipeline.yaml</code></pre>
+          <button class="copy-btn">复制</button>
+        </div>
+
+        <h3>示例对话</h3>
+        <div class="dialogue">
+          <p><strong>你：</strong>先 validate 配置</p>
+          <p><strong>Agent：</strong>调用 `gmv_validate` 并返回检查结果。</p>
+          <p><strong>你：</strong>dry-run upstream</p>
+          <p><strong>Agent：</strong>调用 `gmv_run(dry_run=true, stage=upstream)`。</p>
+          <p><strong>你：</strong>提交 project 到 slurm</p>
+          <p><strong>Agent：</strong>识别为高风险动作，请求确认后执行。</p>
+        </div>
+      </section>
+
+      <section id="outputs" class="card">
+        <h2>输出目录与结果解释</h2>
+        <div class="cmd-block">
+          <pre><code>work/
+  &lt;run_id&gt;/
+    upstream/
+    viruslib/
+
+results/
+  &lt;run_id&gt;/
+    upstream/&lt;sample&gt;/11.busco_filter/contigs.fa
+    viruslib/viruslib_nr.fa
+    downstream/coverm/abundance.tsv
+    agent/decisions.jsonl
+    agent/chat/chat.&lt;timestamp&gt;.jsonl
+
+reports/
+  manuscript/
+    methods_zh.md
+    figures/
+    tables/</code></pre>
+          <button class="copy-btn">复制</button>
+        </div>
+      </section>
+
+      <section id="troubleshooting" class="card">
+        <h2>故障排查</h2>
+        <ul>
+          <li><strong>报错：数据库路径不存在</strong>：检查 `pipeline.yaml` 中 `database.*` 是否与服务器实际路径一致。</li>
+          <li><strong>报错：找不到 singularity</strong>：先加载模块，再执行 `gmv validate`。</li>
+          <li><strong>报错：snakemake 未安装</strong>：安装或加载环境后重试；`--dry-run` 也需要 snakemake。</li>
+          <li><strong>Chat 无法连接模型</strong>：先确认 `GMV_API_KEY`、`base_url`、`model`。</li>
+          <li><strong>规则失败看不到细节</strong>：使用 `show_latest_snakemake_log` 或直接查看 `.snakemake/log/*.snakemake.log`。</li>
+        </ul>
+      </section>
+
+      <section id="generator" class="card">
+        <h2>命令生成器</h2>
+        <p>根据常用参数拼接 `gmv run` 命令（仅生成字符串，不执行）。</p>
+        <form id="cmd-generator" class="generator">
+          <label>
+            config
+            <input type="text" id="g-config" value="config/pipeline.yaml" />
+          </label>
+          <label>
+            profile
+            <select id="g-profile">
+              <option value="local">local</option>
+              <option value="slurm">slurm</option>
+            </select>
+          </label>
+          <label>
+            stage
+            <select id="g-stage">
+              <option value="all">all</option>
+              <option value="upstream">upstream</option>
+              <option value="project">project</option>
+            </select>
+          </label>
+          <label>
+            cores
+            <input type="number" id="g-cores" min="1" placeholder="可选" />
+          </label>
+          <label class="checkbox">
+            <input type="checkbox" id="g-dry" checked />
+            dry-run
+          </label>
+          <button type="button" id="g-build" class="btn">生成命令</button>
+        </form>
+
+        <div class="cmd-block">
+          <pre><code id="g-output">PYTHONPATH=src python -m gmv.cli run --config config/pipeline.yaml --profile local --stage all --dry-run</code></pre>
+          <button class="copy-btn">复制</button>
+        </div>
+      </section>
+
+      <section id="faq" class="card">
+        <h2>FAQ</h2>
+        <h3>Q1: v3 与 v2 兼容吗？</h3>
+        <p>不兼容。v3 是破坏性精简重构，只保留 `validate/run/report/chat` 四个命令。</p>
+
+        <h3>Q2: ChatOps 会执行任意 shell 吗？</h3>
+        <p>不会。仅允许白名单工具，且高风险动作默认需要确认。</p>
+
+        <h3>Q3: 服务器断网还能跑吗？</h3>
+        <p>可以。前提是 SIF 镜像、数据库、样本数据都已经放在本地路径。</p>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>GMV v3 · GitHub Pages 推荐目录：<code>/docs</code> · 最后更新：2026-02-17</p>
+    </footer>
+
+    <script src="assets/app.js"></script>
+  </body>
+</html>

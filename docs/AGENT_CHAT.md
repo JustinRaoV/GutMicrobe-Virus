@@ -1,16 +1,14 @@
-# GMV ChatOps（对话式 Agent）
+# GMV ChatOps 使用说明
 
-GMV v2 提供 `gmv chat`，允许你通过对话执行 **白名单** 的本地任务与 SLURM 操作（OpenAI-Compatible）。
+## 1. 配置
 
-## 1. 配置 LLM（推荐）
-
-1) 设置 API key（不落盘）：
+推荐将 API key 放到环境变量：
 
 ```bash
 export GMV_API_KEY="..."
 ```
 
-2) 写入 `~/.config/gmv/llm.yaml`：
+可选用户配置文件：`~/.config/gmv/llm.yaml`
 
 ```yaml
 base_url: "https://api.openai.com/v1"
@@ -20,48 +18,32 @@ timeout_s: 60
 verify_tls: true
 ```
 
-你也可以用环境变量覆盖：
-
-- `GMV_BASE_URL`
-- `GMV_MODEL`
-
-## 2. 运行（CentOS7 + module）
-
-```bash
-module load CentOS/7.9/Anaconda3/24.5.0
-module load CentOS/7.9/singularity/3.9.2
-```
+## 2. 运行
 
 交互模式：
 
 ```bash
-PYTHONPATH=src python -m gmv.cli chat --config config/examples/cfff/pipeline.local.yaml
+PYTHONPATH=src python -m gmv.cli chat --config config/pipeline.yaml
 ```
 
-单次消息模式：
+单次消息：
 
 ```bash
-PYTHONPATH=src python -m gmv.cli chat --config config/examples/cfff/pipeline.local.yaml --message "validate"
+PYTHONPATH=src python -m gmv.cli chat --config config/pipeline.yaml --message "validate"
 ```
 
-高风险动作（例如 `gmv run` 非 dry-run、`scancel`）默认需要确认；单次消息模式可用 `--auto-approve` 跳过确认：
+## 3. 安全规则
 
-```bash
-PYTHONPATH=src python -m gmv.cli chat --config config/pipeline.yaml --message "提交 upstream 到 slurm" --auto-approve
-```
-
-## 3. 示例对话脚本
-
-- `validate`
-- `dry-run upstream`
-- `提交 upstream 到 slurm`（高风险：默认需要确认或使用 `--auto-approve`）
-- `查看队列里 GMV 相关 job`
-- `查看 job 12345 的 sacct`
+- 白名单工具执行，不开放任意 shell
+- 高风险动作默认确认：
+  - `gmv_run(dry_run=false)`
+  - `slurm_scancel`
+- 如需跳过确认：`--auto-approve`
 
 ## 4. 审计日志
 
-每次会话都会写入审计 JSONL：
+路径：
 
 - `results/<run_id>/agent/chat/chat.<timestamp>.jsonl`
 
-其中包含 tool 调用、返回码、stdout/stderr 末尾以及 artifacts 文件路径。
+字段包含：`role/content/tool_name/tool_args/returncode/stdout_tail/stderr_tail/artifact_paths`。

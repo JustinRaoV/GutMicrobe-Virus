@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
-echo "[GMV] v2 test-release (fast, offline)"
+echo "[GMV] v3 test-release (fast, offline)"
 make test-release
 
 SMOKE_CONFIG_DEFAULT="config/examples/cfff/pipeline.local.yaml"
@@ -47,4 +47,3 @@ echo ""
 echo "[GMV] smoke outputs:"
 ls -la results || true
 ls -la reports/manuscript 2>/dev/null || true
-

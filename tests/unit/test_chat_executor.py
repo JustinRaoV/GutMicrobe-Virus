@@ -8,42 +8,39 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from gmv.agent.chat.executor import execute_tool
+from gmv.chat.tools import TOOL_SPECS, sanitize_args, tool_risk
 
 
 class ChatExecutorTests(unittest.TestCase):
-    def setUp(self):
-        self.log_dir = ROOT / "results" / "chat-test" / "agent" / "chat"
-        self.log_dir.mkdir(parents=True, exist_ok=True)
-
-    def test_high_risk_blocked_in_non_interactive_without_auto_approve(self):
-        cfg = ROOT / "tests" / "fixtures" / "minimal" / "config" / "pipeline.yaml"
-        res = execute_tool(
+    def test_whitelist_contains_expected_tools(self):
+        for name in (
+            "gmv_validate",
             "gmv_run",
-            {"config_path": str(cfg), "profile": "local", "stage": "upstream", "dry_run": False, "cores": None},
-            config_path=str(cfg),
-            auto_approve=False,
-            interactive=False,
-            dry_run_tools=True,
-            log_dir=self.log_dir,
+            "gmv_report",
+            "slurm_squeue",
+            "slurm_sacct",
+            "slurm_scontrol_show_job",
+            "slurm_scancel",
+            "tail_file",
+            "show_latest_snakemake_log",
+        ):
+            self.assertIn(name, TOOL_SPECS)
+
+    def test_high_risk_classification(self):
+        self.assertEqual(
+            tool_risk("gmv_run", {"config_path": "x", "profile": "local", "stage": "all", "dry_run": False}),
+            "high",
         )
-        self.assertEqual(res.returncode, 3)
-        self.assertIn("确认", res.stderr_tail)
+        self.assertEqual(tool_risk("slurm_scancel", {"job_id": "1"}), "high")
+        self.assertEqual(
+            tool_risk("gmv_run", {"config_path": "x", "profile": "local", "stage": "all", "dry_run": True}),
+            "low",
+        )
 
     def test_sanitizer_rejects_shell_metacharacters(self):
-        cfg = ROOT / "tests" / "fixtures" / "minimal" / "config" / "pipeline.yaml"
         with self.assertRaises(ValueError):
-            execute_tool(
-                "slurm_squeue",
-                {"user": "bad;rm -rf /"},
-                config_path=str(cfg),
-                auto_approve=True,
-                interactive=False,
-                dry_run_tools=True,
-                log_dir=self.log_dir,
-            )
+            sanitize_args("slurm_squeue", {"user": "bad;rm -rf /"})
 
 
 if __name__ == "__main__":
     unittest.main()
-

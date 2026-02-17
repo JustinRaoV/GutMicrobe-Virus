@@ -1,56 +1,45 @@
-# GutMicrobeVirus v2 架构说明
+# GutMicrobeVirus v3 架构说明
 
-## 1. 总体架构
+## 架构目标
 
-- 编排层：Snakemake
-- 执行层：Singularity（离线镜像）
-- 调度层：SLURM profile / local profile
-- 控制层：`gmv` 统一 CLI
-- 决策层：离线 Agent（分级自治）
-- 报告层：中文方法说明 + 英文图表
+- 破坏性精简：删除旧兼容层，收敛到单入口 `gmv`
+- 离线优先：断网服务器可运行
+- 成本可控：上游并发 + 项目级集中执行
+- 可审计：ChatOps 所有动作写入 JSONL
 
-## 2. 数据分层
+## 模块结构
+
+- `src/gmv/cli.py`：唯一 CLI 入口（4 命令）
+- `src/gmv/config.py`：pipeline + llm 配置统一加载
+- `src/gmv/chat/`：LLM client、工具白名单、会话执行
+- `src/gmv/workflow/runner.py`：Snakemake 启动与 stage 控制
+- `src/gmv/workflow/steps/`：`upstream / project / agent` 步骤实现
+- `src/gmv/reporting/`：报告与图表生成
+
+## CLI 合约（v3）
+
+- `gmv validate`
+- `gmv run`
+- `gmv report`
+- `gmv chat`
+
+## 数据分层
 
 - `raw/` 原始输入
 - `work/` 中间过程产物
-- `cache/` 缓存
-- `results/` 最终结果
+- `cache/` 可选缓存
+- `results/` 最终结果与 agent 审计
 - `reports/` 报告与图表
 
-## 3. Snakemake DAG
+## 并发策略
 
-主要阶段：
+- 上游：按样本并发
+- 项目级：viruslib + downstream + agent 汇总
+- 资源：按输入规模估算 `mem_mb/runtime`，支持 `fudge/overrides`
 
-1. preprocess
-2. host_removal
-3. assembly
-4. vsearch
-5. virus_detection (virsorter/genomad)
-6. combination
-7. checkv
-8. high_quality
-9. busco_filter
-10. viruslib (merge + dedup + annotation)
-11. downstream (coverm / bowtie2_samtools)
-12. agent decision log
+## ChatOps 安全边界
 
-## 4. Agent 机制
-
-- 输入信号：步骤状态、错误类型、重试次数、产量
-- 低风险动作（自动）：资源上调、普通重试
-- 高风险动作（建议）：阈值放宽、流程策略调整
-- 输出：`results/<run_id>/agent/decisions.jsonl`
-
-## 5. 配置协议
-
-主配置：`config/pipeline.yaml`
-
-关键段：
-
-- `execution`
-- `containers`
-- `tools`
-- `agent`
-- `reporting`
-- `resources`
-- `database`
+- 仅白名单工具
+- 非 dry-run 的 `gmv run` 与 `slurm_scancel` 为高风险
+- 默认要求确认（`--auto-approve` 可关闭）
+- 审计日志：`results/<run_id>/agent/chat/chat.<timestamp>.jsonl`
