@@ -1,0 +1,194 @@
+from __future__ import annotations
+
+import csv
+import os
+import shlex
+import sys
+from pathlib import Path
+
+
+WORKFLOW_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = WORKFLOW_DIR.parent
+CFG = config
+
+
+def _abs_path(raw: str | Path) -> Path:
+    candidate = Path(str(raw)).expanduser()
+    if candidate.is_absolute():
+        return candidate
+    return (PROJECT_ROOT / candidate).resolve()
+
+
+RUN_ID = str(CFG["execution"]["run_id"])
+RAW_DIR = _abs_path(CFG["execution"]["raw_dir"])
+WORK_DIR = _abs_path(CFG["execution"]["work_dir"])
+RESULTS_DIR = _abs_path(CFG["execution"]["results_dir"])
+REPORTS_DIR = _abs_path(CFG["execution"]["reports_dir"])
+WORK_ROOT = WORK_DIR / RUN_ID
+RESULTS_ROOT = RESULTS_DIR / RUN_ID
+REPORTS_ROOT = REPORTS_DIR / RUN_ID
+SAMPLE_SHEET = _abs_path(CFG["execution"]["sample_sheet"])
+
+for path in (RAW_DIR, WORK_DIR, RESULTS_DIR, REPORTS_DIR, WORK_ROOT, RESULTS_ROOT, REPORTS_ROOT):
+    path.mkdir(parents=True, exist_ok=True)
+
+
+with SAMPLE_SHEET.open("r", encoding="utf-8") as handle:
+    first_line = handle.readline()
+SAMPLE_DELIMITER = "\t" if "\t" in first_line else ","
+with SAMPLE_SHEET.open("r", encoding="utf-8") as handle:
+    SAMPLE_ROWS = [dict(row) for row in csv.DictReader(handle, delimiter=SAMPLE_DELIMITER)]
+
+if not SAMPLE_ROWS:
+    raise ValueError(f"sample_sheet is empty: {SAMPLE_SHEET}")
+
+SAMPLES = sorted([row["sample"].strip() for row in SAMPLE_ROWS if row.get("sample")])
+if not SAMPLES:
+    raise ValueError(f"sample column is empty: {SAMPLE_SHEET}")
+
+SAMPLE_MAP = {row["sample"].strip(): row for row in SAMPLE_ROWS}
+if len(SAMPLE_MAP) != len(SAMPLES):
+    raise ValueError(f"sample names must be unique: {SAMPLE_SHEET}")
+
+
+def sample_r1(sample: str) -> str:
+    return str(Path(SAMPLE_MAP[sample]["input1"]).expanduser().resolve())
+
+
+def sample_r2(sample: str) -> str:
+    return str(Path(SAMPLE_MAP[sample]["input2"]).expanduser().resolve())
+
+
+DEFAULT_THREADS = int(CFG.get("resources", {}).get("default_threads", 8))
+THREAD_MAP = CFG.get("resources", {}).get("threads", {})
+
+
+def threads_for(tool: str) -> int:
+    return int(THREAD_MAP.get(tool, DEFAULT_THREADS))
+
+
+ESTIMATION = CFG.get("resources", {}).get("estimation", {})
+ESTIMATION_ENABLED = bool(ESTIMATION.get("enabled", True))
+EST_FUDGE = float(ESTIMATION.get("fudge", 1.2))
+EST_OVERRIDES = ESTIMATION.get("overrides", {})
+
+DEFAULT_EST = {
+    "fastp": {"mem_mb_base": 1000, "mem_mb_per_gb": 1500, "runtime_base": 10, "runtime_per_gb": 15, "mem_mb_max": 16000, "runtime_max": 240},
+    "bowtie2": {"mem_mb_base": 2000, "mem_mb_per_gb": 1200, "runtime_base": 20, "runtime_per_gb": 20, "mem_mb_max": 32000, "runtime_max": 480},
+    "megahit": {"mem_mb_base": 8000, "mem_mb_per_gb": 3500, "runtime_base": 30, "runtime_per_gb": 45, "mem_mb_max": 128000, "runtime_max": 1440},
+    "vsearch": {"mem_mb_base": 1000, "mem_mb_per_gb": 1000, "runtime_base": 10, "runtime_per_gb": 10, "mem_mb_max": 12000, "runtime_max": 240},
+    "virsorter": {"mem_mb_base": 6000, "mem_mb_per_gb": 2000, "runtime_base": 40, "runtime_per_gb": 35, "mem_mb_max": 64000, "runtime_max": 1440},
+    "genomad": {"mem_mb_base": 8000, "mem_mb_per_gb": 2200, "runtime_base": 45, "runtime_per_gb": 30, "mem_mb_max": 64000, "runtime_max": 1440},
+    "checkv": {"mem_mb_base": 6000, "mem_mb_per_gb": 2000, "runtime_base": 30, "runtime_per_gb": 30, "mem_mb_max": 64000, "runtime_max": 1440},
+    "project": {"mem_mb_base": 12000, "mem_mb_per_gb": 1800, "runtime_base": 60, "runtime_per_gb": 40, "mem_mb_max": 128000, "runtime_max": 2880},
+    "coverm": {"mem_mb_base": 16000, "mem_mb_per_gb": 2000, "runtime_base": 60, "runtime_per_gb": 50, "mem_mb_max": 196000, "runtime_max": 2880},
+}
+
+
+def _clamp(value: float, maximum: float) -> int:
+    return int(min(max(value, 1), maximum))
+
+
+def _size_mb(paths) -> float:
+    total = 0
+    for item in paths:
+        try:
+            total += os.path.getsize(str(item))
+        except OSError:
+            continue
+    return total / (1024 * 1024)
+
+
+TOTAL_READS_MB = 0.0
+for sample in SAMPLES:
+    for read in (sample_r1(sample), sample_r2(sample)):
+        try:
+            TOTAL_READS_MB += os.path.getsize(read) / (1024 * 1024)
+        except OSError:
+            pass
+
+
+def _estimate(tool: str, input_size_mb: float) -> tuple[int, int]:
+    params = dict(DEFAULT_EST.get(tool, DEFAULT_EST["project"]))
+    params.update(EST_OVERRIDES.get(tool, {}))
+
+    gb = input_size_mb / 1024.0
+    if not ESTIMATION_ENABLED:
+        gb = 0.0
+
+    mem_mb = (params["mem_mb_base"] + params["mem_mb_per_gb"] * gb) * EST_FUDGE
+    runtime = (params["runtime_base"] + params["runtime_per_gb"] * gb) * EST_FUDGE
+
+    return (
+        _clamp(mem_mb, params.get("mem_mb_max", 64000)),
+        _clamp(runtime, params.get("runtime_max", 1440)),
+    )
+
+
+def mem_for(tool: str):
+    def _inner(wildcards, input, threads):
+        return _estimate(tool, _size_mb(input))[0]
+
+    return _inner
+
+
+def runtime_for(tool: str):
+    def _inner(wildcards, input, threads):
+        return _estimate(tool, _size_mb(input))[1]
+
+    return _inner
+
+
+def mem_for_coverm(wildcards, input, threads):
+    return _estimate("coverm", TOTAL_READS_MB)[0]
+
+
+def runtime_for_coverm(wildcards, input, threads):
+    return _estimate("coverm", TOTAL_READS_MB)[1]
+
+
+USE_SINGULARITY = bool(CFG.get("execution", {}).get("use_singularity", True))
+BINARY_MAP = CFG.get("tools", {}).get("binary", {})
+IMAGE_MAP = CFG.get("containers", {}).get("images", {})
+
+
+binds = set(CFG.get("containers", {}).get("binds", []))
+for path in (PROJECT_ROOT, RAW_DIR, WORK_DIR, RESULTS_DIR, REPORTS_DIR, SAMPLE_SHEET.parent):
+    binds.add(str(path))
+for db_path in CFG.get("database", {}).values():
+    if db_path:
+        binds.add(str(Path(db_path).expanduser().resolve()))
+for sample in SAMPLES:
+    binds.add(str(Path(sample_r1(sample)).parent))
+
+BIND_FLAGS = " ".join(sorted([f"-B {shlex.quote(item)}" for item in binds if Path(item).exists()]))
+
+
+def tool_cmd(tool: str) -> str:
+    binary = BINARY_MAP.get(tool, tool)
+    if not USE_SINGULARITY:
+        return binary
+    image = IMAGE_MAP.get(tool, "")
+    if not image:
+        return binary
+    return f"singularity exec {BIND_FLAGS} {shlex.quote(str(image))} {binary}"
+
+
+PYTHON_CMD = f"PYTHONPATH={shlex.quote(str((PROJECT_ROOT / 'src').resolve()))} {shlex.quote(sys.executable)}"
+
+
+def up_path(sample: str, step: str, file_name: str) -> str:
+    return str((WORK_ROOT / "upstream" / sample / step / file_name).resolve())
+
+
+UPSTREAM_FINAL = expand(str((WORK_ROOT / "upstream/{sample}/10.busco_filter/contigs.fa").resolve()), sample=SAMPLES)
+PROJECT_FINAL = str((RESULTS_ROOT / "agent" / "decisions.jsonl").resolve())
+
+
+include: "rules/upstream.smk"
+include: "rules/project.smk"
+
+
+rule all:
+    input:
+        PROJECT_FINAL

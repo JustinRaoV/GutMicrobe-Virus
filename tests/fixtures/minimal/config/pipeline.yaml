@@ -1,0 +1,62 @@
+execution:
+  run_id: minimal
+  profile: local
+  raw_dir: raw
+  work_dir: work
+  cache_dir: cache
+  results_dir: results
+  reports_dir: reports
+  sample_sheet: samples.tsv
+  use_singularity: false
+  offline: true
+
+containers:
+  mapping_file: ""
+  images: {}
+  binds: []
+
+tools:
+  enabled:
+    virsorter: true
+    genomad: true
+    coverm: true
+    vclust: true
+  params:
+    vsearch_min_len: 100
+    busco_ratio_threshold: 0.05
+    coverm: "--methods count"
+  binary:
+    fastp: fastp
+    bowtie2: bowtie2
+    megahit: megahit
+    vsearch: vsearch
+    virsorter: virsorter
+    genomad: genomad
+    checkv: checkv
+    coverm: coverm
+    vclust: vclust
+    seqkit: seqkit
+
+resources:
+  default_threads: 2
+  threads:
+    fastp: 2
+    bowtie2: 2
+    megahit: 2
+    coverm: 2
+  limits:
+    checkv: 1
+    virsorter: 1
+  estimation:
+    enabled: true
+    fudge: 1.2
+    overrides: {}
+
+database:
+  bowtie2_index: ""
+  checkv: ""
+  virsorter: ""
+  genomad: ""
+  busco: ""
+  phabox2: ""
+  blastn: ""

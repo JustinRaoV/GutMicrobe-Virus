@@ -1,0 +1,6 @@
+printshellcmds: true
+keep-going: true
+restart-times: 1
+rerun-incomplete: true
+latency-wait: 60
+jobs: 50

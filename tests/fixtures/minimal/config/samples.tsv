@@ -1,0 +1,3 @@
+sample	mode	input1	input2	host
+alpha	reads	tests/fixtures/minimal/data/alpha_R1.fq	tests/fixtures/minimal/data/alpha_R2.fq	
+beta	reads	tests/fixtures/minimal/data/beta_R1.fq	tests/fixtures/minimal/data/beta_R2.fq	

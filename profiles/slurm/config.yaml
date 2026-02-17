@@ -1,0 +1,11 @@
+executor: slurm
+printshellcmds: true
+keep-going: true
+restart-times: 1
+rerun-incomplete: true
+latency-wait: 120
+jobs: 300
+default-resources:
+  - mem_mb=4000
+  - runtime=60
+  - threads=1

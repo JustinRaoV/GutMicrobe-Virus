@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>GMV v4 使用说明</title>
+    <link rel="stylesheet" href="assets/style.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div class="hero-overlay"></div>
+      <div class="hero-content">
+        <p class="eyebrow">GutMicrobeVirus v4</p>
+        <h1>离线可用的肠道病毒检测系统</h1>
+        <p class="lead">Snakemake + Singularity + SLURM + ChatOps。一个入口命令，完整上游到项目级分析。</p>
+        <div class="hero-actions">
+          <a class="btn" href="#quickstart">快速开始</a>
+          <a class="btn btn-ghost" href="#chatops">ChatOps</a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section id="positioning" class="card">
+        <h2>项目定位</h2>
+        <ul>
+          <li>服务器断网环境可运行（本地镜像 + 本地数据库）。</li>
+          <li>上游高并发、下游项目级单任务，兼顾吞吐与成本可控。</li>
+          <li>默认方法学为平衡集成：VirSorter2 + geNomad + CheckV。</li>
+          <li>默认中文报告，图表文字英文。</li>
+        </ul>
+      </section>
+
+      <section id="quickstart" class="card">
+        <h2>快速开始</h2>
+        <div class="tabs" data-tabs>
+          <button class="tab active" data-tab="local">Local</button>
+          <button class="tab" data-tab="two-stage">Two-stage</button>
+          <button class="tab" data-tab="slurm">SLURM</button>
+        </div>
+
+        <div class="tab-panels">
+          <article class="panel active" data-panel="local">
+            <pre><code>git clone -b codex/v4-virome-system https://github.com/JustinRaoV/GutMicrobe-Virus.git
+cd GutMicrobe-Virus
+module load CentOS/7.9/Anaconda3/24.5.0
+module load CentOS/7.9/singularity/3.9.2
+./gmv validate --config config/examples/cfff/pipeline.local.yaml
+./gmv run --config config/examples/cfff/pipeline.local.yaml --profile local --stage all --cores 8</code></pre>
+            <button class="copy-btn" data-copy>复制命令</button>
+          </article>
+
+          <article class="panel" data-panel="two-stage">
+            <pre><code>./gmv run --config config/examples/cfff/pipeline.local.yaml --profile local --stage upstream --cores 16
+./gmv run --config config/examples/cfff/pipeline.local.yaml --profile local --stage project --cores 16
+./gmv report --config config/examples/cfff/pipeline.local.yaml</code></pre>
+            <button class="copy-btn" data-copy>复制命令</button>
+          </article>
+
+          <article class="panel" data-panel="slurm">
+            <pre><code>./gmv run --config config/examples/cfff/pipeline.local.yaml --profile slurm --stage upstream --cores 300
+./gmv run --config config/examples/cfff/pipeline.local.yaml --profile slurm --stage project --cores 64
+squeue -u $USER</code></pre>
+            <button class="copy-btn" data-copy>复制命令</button>
+          </article>
+        </div>
+      </section>
+
+      <section id="config" class="card">
+        <h2>配置说明</h2>
+        <h3>1) pipeline 配置</h3>
+        <p>主配置文件：<code>config/pipeline.yaml</code>。CFFF 服务器示例：<code>config/examples/cfff/pipeline.local.yaml</code>。</p>
+        <h3>2) LLM 配置</h3>
+        <pre><code>~/.config/gmv/llm.yaml
+base_url: https://api.openai.com/v1
+model: gpt-4o-mini
+api_key_env: GMV_API_KEY</code></pre>
+        <p>环境变量覆盖：<code>GMV_BASE_URL</code>、<code>GMV_MODEL</code>、<code>GMV_API_KEY</code>。</p>
+      </section>
+
+      <section id="runtime" class="card">
+        <h2>运行策略（并发与资源）</h2>
+        <ul>
+          <li>上游规则按样本并发，适合 300+ 样本批处理。</li>
+          <li>项目级步骤（viruslib/downstream/agent）在 SLURM 下 group 成单任务。</li>
+          <li>每个规则声明 <code>threads</code>/<code>mem_mb</code>/<code>runtime</code>。</li>
+          <li>资源按输入体积估算，减少过度申请。</li>
+        </ul>
+      </section>
+
+      <section id="chatops" class="card">
+        <h2>ChatOps 使用</h2>
+        <pre><code>export GMV_API_KEY=***
+./gmv chat --config config/examples/cfff/pipeline.local.yaml</code></pre>
+        <p>示例对话：</p>
+        <ul>
+          <li>“先 validate 配置。”</li>
+          <li>“dry-run upstream。”</li>
+          <li>“提交 project 到 slurm。”</li>
+          <li>“查看队列里 GMV 任务。”</li>
+        </ul>
+        <p>审计日志：<code>results/&lt;run_id&gt;/agent/chat/chat.*.jsonl</code></p>
+      </section>
+
+      <section id="generator" class="card">
+        <h2>命令生成器</h2>
+        <form id="cmd-form">
+          <label>Config 路径
+            <input id="cfg" value="config/examples/cfff/pipeline.local.yaml" />
+          </label>
+          <label>Profile
+            <select id="profile">
+              <option>local</option>
+              <option>slurm</option>
+            </select>
+          </label>
+          <label>Stage
+            <select id="stage">
+              <option>all</option>
+              <option>upstream</option>
+              <option>project</option>
+            </select>
+          </label>
+          <label>Cores
+            <input id="cores" type="number" value="8" min="1" />
+          </label>
+          <button type="button" id="build">生成命令</button>
+        </form>
+        <pre id="generated"><code>./gmv run --config config/examples/cfff/pipeline.local.yaml --profile local --stage all --cores 8</code></pre>
+      </section>
+
+      <section id="outputs" class="card">
+        <h2>输出目录</h2>
+        <pre><code>raw/
+work/&lt;run_id&gt;/upstream/&lt;sample&gt;/...
+results/&lt;run_id&gt;/viruslib/
+results/&lt;run_id&gt;/downstream/abundance.tsv
+results/&lt;run_id&gt;/agent/decisions.jsonl
+reports/&lt;run_id&gt;/manuscript/</code></pre>
+      </section>
+
+      <section id="troubleshooting" class="card">
+        <h2>排障</h2>
+        <ul>
+          <li>找不到 singularity：先 <code>module load CentOS/7.9/singularity/3.9.2</code></li>
+          <li>容器或数据库路径错误：运行 <code>./gmv validate --strict</code></li>
+          <li>看最新 Snakemake 日志：<code>./gmv chat --message "show latest snakemake log"</code></li>
+        </ul>
+      </section>
+
+      <section id="faq" class="card">
+        <h2>FAQ</h2>
+        <h3>Q: 为什么只保留 4 个命令？</h3>
+        <p>A: 这是 v4 破坏性精简，目标是降低维护成本和用户心智负担。</p>
+        <h3>Q: 输入目录里是 <code>myR1.fq.gz/myR2.fq.gz</code> 可以自动识别吗？</h3>
+        <p>A: 可以。默认规则 <code>_R1/_R2</code> 失败时会回退识别 <code>R1/R2</code>、<code>_1/_2</code>。</p>
+      </section>
+    </main>
+
+    <footer>
+      <p>GMV v4 | Offline-first Virome System</p>
+    </footer>
+
+    <script src="assets/app.js"></script>
+  </body>
+</html>

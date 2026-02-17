@@ -1,0 +1,86 @@
+execution:
+  run_id: gmv-v4
+  profile: local
+  raw_dir: raw
+  work_dir: work
+  cache_dir: cache
+  results_dir: results
+  reports_dir: reports
+  sample_sheet: examples/cfff/samples.tsv
+  use_singularity: true
+  offline: true
+
+paths:
+  data_dir: ""
+  sif_dir: ""
+  db_dir: ""
+
+containers:
+  mapping_file: examples/cfff/containers.yaml
+  binds: []
+
+tools:
+  enabled:
+    virsorter: true
+    genomad: true
+    coverm: true
+    vclust: true
+    phabox2: false
+  params:
+    vsearch_min_len: 1500
+    busco_ratio_threshold: 0.05
+    coverm: "--methods count --min-read-percent-identity 95 --min-read-aligned-percent 75 --output-format dense"
+  binary:
+    fastp: fastp
+    bowtie2: bowtie2
+    megahit: megahit
+    vsearch: vsearch
+    virsorter: virsorter
+    genomad: genomad
+    checkv: checkv
+    coverm: coverm
+    vclust: vclust
+    seqkit: seqkit
+
+resources:
+  default_threads: 8
+  threads:
+    fastp: 8
+    bowtie2: 8
+    megahit: 16
+    vsearch: 4
+    virsorter: 8
+    genomad: 8
+    checkv: 8
+    coverm: 16
+    vclust: 8
+    project: 8
+  limits:
+    checkv: 1
+    virsorter: 1
+    busco: 1
+  estimation:
+    enabled: true
+    fudge: 1.2
+    overrides: {}
+
+agent:
+  enabled: true
+  auto_apply_risk_levels: ["low"]
+  retry_limit: 1
+
+reporting:
+  language: zh
+  figure_language: en
+
+database:
+  bowtie2_index: ""
+  checkv: ""
+  virsorter: ""
+  genomad: ""
+  busco: ""
+  phabox2: ""
+  blastn: ""
+
+chat:
+  max_steps: 8
