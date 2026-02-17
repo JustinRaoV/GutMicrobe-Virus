@@ -322,9 +322,10 @@ def _detect_virsorter(args: argparse.Namespace) -> int:
                 args.contigs_in,
                 "-j",
                 str(args.threads),
-                "all",
-                "--db-dir",
+                "-d",
                 args.db,
+                "--use-conda-off",
+                "all",
             ],
         )
         run_cmd(cmd)
