@@ -383,6 +383,29 @@ def validate_runtime(
         if not Path(db_path).exists():
             errors.append(f"数据库路径不存在: {db_name} -> {db_path}")
 
+    def _bowtie2_prefix_exists(prefix: str) -> bool:
+        base = Path(prefix)
+        bt2 = [f"{base}.{idx}.bt2" for idx in ("1", "2", "3", "4", "rev.1", "rev.2")]
+        bt2l = [f"{base}.{idx}.bt2l" for idx in ("1", "2", "3", "4", "rev.1", "rev.2")]
+        return all(Path(p).exists() for p in bt2) or all(Path(p).exists() for p in bt2l)
+
+    bowtie_root = cfg.get("database", {}).get("bowtie2_index", "")
+    if bowtie_root:
+        root = Path(bowtie_root).expanduser().resolve()
+        for row in samples:
+            host = (row.get("host") or "").strip()
+            if not host:
+                continue
+            candidates = []
+            if root.is_dir():
+                candidates.extend([root / host / host, root / host, root / f"{host}_index"])
+            else:
+                candidates.append(root)
+            if not any(_bowtie2_prefix_exists(str(item)) for item in candidates):
+                errors.append(
+                    f"样本 {row['sample']} 指定 host={host}，但未找到可用 Bowtie2 index 前缀（base={root}）"
+                )
+
     use_singularity = bool(cfg.get("execution", {}).get("use_singularity", True))
     if use_singularity:
         if strict and shutil.which("singularity") is None:

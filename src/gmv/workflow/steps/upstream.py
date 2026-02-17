@@ -33,6 +33,40 @@ def _render_cmd(base_cmd: str, argv: list[str]) -> str:
     return " ".join(parts)
 
 
+def _bowtie2_prefix_exists(prefix: str) -> bool:
+    base = Path(prefix)
+    bt2 = [f"{base}.{idx}.bt2" for idx in ("1", "2", "3", "4", "rev.1", "rev.2")]
+    bt2l = [f"{base}.{idx}.bt2l" for idx in ("1", "2", "3", "4", "rev.1", "rev.2")]
+    return all(Path(p).exists() for p in bt2) or all(Path(p).exists() for p in bt2l)
+
+
+def _resolve_bowtie2_prefix(index_root: str, host: str) -> str:
+    if not index_root:
+        return ""
+
+    root = Path(index_root).expanduser().resolve()
+    host = host.strip()
+
+    candidates: list[Path] = []
+    if root.is_dir():
+        if host:
+            candidates.extend(
+                [
+                    root / host / host,
+                    root / host,
+                    root / f"{host}_index",
+                ]
+            )
+        # If host is not provided, we intentionally skip host-removal to avoid using wrong index.
+    else:
+        candidates.append(root)
+
+    for candidate in candidates:
+        if _bowtie2_prefix_exists(str(candidate)):
+            return str(candidate)
+    return ""
+
+
 def _preprocess(args: argparse.Namespace) -> int:
     ensure_parent(args.r1_out)
     ensure_parent(args.r2_out)
@@ -65,14 +99,15 @@ def _host_removal(args: argparse.Namespace) -> int:
     ensure_parent(args.r1_out)
     ensure_parent(args.r2_out)
 
-    if args.bowtie2_cmd and args.index_prefix and Path(args.index_prefix).exists():
+    resolved_prefix = _resolve_bowtie2_prefix(args.index_prefix, args.host)
+    if args.bowtie2_cmd and resolved_prefix:
         out_dir = Path(args.r1_out).resolve().parent
         prefix = out_dir / "host_removed"
         cmd = _render_cmd(
             args.bowtie2_cmd,
             [
                 "-x",
-                args.index_prefix,
+                resolved_prefix,
                 "-1",
                 args.r1_in,
                 "-2",
@@ -94,6 +129,13 @@ def _host_removal(args: argparse.Namespace) -> int:
         copy_or_decompress(r1_tmp, args.r1_out)
         copy_or_decompress(r2_tmp, args.r2_out)
     else:
+        if args.host.strip():
+            print(
+                f"[GMV] host_removal skipped: bowtie2 index not resolved for host='{args.host}' under '{args.index_prefix}'.",
+                flush=True,
+            )
+        else:
+            print("[GMV] host_removal skipped: sample host is empty, passthrough reads.", flush=True)
         copy_or_decompress(args.r1_in, args.r1_out)
         copy_or_decompress(args.r2_in, args.r2_out)
 
@@ -377,6 +419,7 @@ def register_subcommands(subparsers: argparse._SubParsersAction[argparse.Argumen
     host.add_argument("--threads", type=int, default=4)
     host.add_argument("--bowtie2-cmd", default="")
     host.add_argument("--index-prefix", default="")
+    host.add_argument("--host", default="")
     host.set_defaults(func=_host_removal)
 
     assembly = subparsers.add_parser("assembly")

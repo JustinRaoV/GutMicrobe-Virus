@@ -55,6 +55,7 @@ rule host_removal:
     params:
         bowtie2_cmd=tool_cmd("bowtie2"),
         index_prefix=DB_BOWTIE2,
+        host=lambda wc: (SAMPLE_MAP[wc.sample].get("host", "") or "").strip(),
     shell:
         """
         {PYTHON_CMD} -m gmv.workflow.steps host_removal \
@@ -64,7 +65,8 @@ rule host_removal:
           --r2-out {output.r2} \
           --threads {threads} \
           --bowtie2-cmd "{params.bowtie2_cmd}" \
-          --index-prefix "{params.index_prefix}"
+          --index-prefix "{params.index_prefix}" \
+          --host "{params.host}"
         """
 
 
