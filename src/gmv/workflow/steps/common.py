@@ -22,20 +22,33 @@ def ensure_dir(path: str | Path) -> Path:
     return target
 
 
-def run_cmd(cmd: str, cwd: str | None = None) -> None:
-    with tempfile.NamedTemporaryFile(mode="w+", encoding="utf-8", delete=False) as log_file:
-        log_path = Path(log_file.name)
-        completed = subprocess.run(cmd, shell=True, cwd=cwd, stdout=log_file, stderr=log_file, text=True)
+def run_cmd(cmd: str, cwd: str | None = None, log_path: str | Path | None = None) -> None:
+    use_temp = log_path is None
+    if use_temp:
+        with tempfile.NamedTemporaryFile(mode="w+", encoding="utf-8", delete=False) as log_file:
+            actual_log_path = Path(log_file.name)
+    else:
+        actual_log_path = ensure_parent(log_path)
+        actual_log_path.write_text("", encoding="utf-8")
+
+    with actual_log_path.open("a", encoding="utf-8") as log_handle:
+        completed = subprocess.run(cmd, shell=True, cwd=cwd, stdout=log_handle, stderr=log_handle, text=True)
     if completed.returncode != 0:
         try:
-            lines = log_path.read_text(encoding="utf-8", errors="ignore").splitlines()
+            lines = actual_log_path.read_text(encoding="utf-8", errors="ignore").splitlines()
             tail = "\n".join(lines[-60:])
         finally:
-            log_path.unlink(missing_ok=True)
+            if use_temp:
+                actual_log_path.unlink(missing_ok=True)
         if tail:
-            raise RuntimeError(f"命令失败({completed.returncode}): {cmd}\n[tool output tail]\n{tail}")
-        raise RuntimeError(f"命令失败({completed.returncode}): {cmd}")
-    log_path.unlink(missing_ok=True)
+            raise RuntimeError(
+                f"命令失败({completed.returncode}): {cmd}\n"
+                f"[tool output tail]\n{tail}\n"
+                f"[full log]\n{actual_log_path}"
+            )
+        raise RuntimeError(f"命令失败({completed.returncode}): {cmd}\n[full log]\n{actual_log_path}")
+    if use_temp:
+        actual_log_path.unlink(missing_ok=True)
 
 
 def copy_or_decompress(src: str | Path, dest: str | Path) -> None:

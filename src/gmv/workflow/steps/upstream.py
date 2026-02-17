@@ -247,8 +247,9 @@ def _assembly(args: argparse.Namespace) -> int:
                 str(args.threads),
             ],
         )
+        megahit_log = Path(args.contigs_out).resolve().parent / "megahit.run.log"
         try:
-            run_cmd(cmd)
+            run_cmd(cmd, log_path=megahit_log)
         except RuntimeError as exc:
             # In tiny test datasets, host-removal may strip nearly everything and
             # Megahit can fail with no useful assembly. Fall back to synthetic contig.
