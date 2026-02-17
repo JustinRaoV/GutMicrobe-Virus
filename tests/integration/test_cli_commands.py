@@ -1,33 +1,37 @@
+import os
 import subprocess
 import sys
 import unittest
-import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
 class CliIntegrationTests(unittest.TestCase):
+    def _run(self, *args: str) -> subprocess.CompletedProcess:
+        env = {**os.environ, **{"PYTHONPATH": str(ROOT / "src")}}
+        return subprocess.run(
+            [sys.executable, "-m", "gmv.cli", *args],
+            cwd=ROOT,
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+
     def test_validate_command(self):
         cfg = ROOT / "tests" / "fixtures" / "minimal" / "config" / "pipeline.yaml"
-        cmd = [sys.executable, "-m", "gmv.cli", "validate", "--config", str(cfg)]
-        env = {**os.environ, **{"PYTHONPATH": str(ROOT / "src")}}
-        proc = subprocess.run(cmd, cwd=ROOT, env=env, capture_output=True, text=True)
+        proc = self._run("validate", "--config", str(cfg))
         self.assertEqual(proc.returncode, 0, msg=proc.stdout + proc.stderr)
-        self.assertIn("配置校验通过", proc.stdout)
+        self.assertIn("配置校验通过", proc.stdout + proc.stderr)
 
-    def test_agent_replay_command(self):
-        replay_file = ROOT / "tests" / "fixtures" / "minimal" / "results" / "decisions.jsonl"
-        replay_file.parent.mkdir(parents=True, exist_ok=True)
-        replay_file.write_text(
-            '{"step":"genomad","signal":{"status":"failed","error_type":"oom","attempt":1}}\n',
-            encoding="utf-8",
-        )
-        cmd = [sys.executable, "-m", "gmv.cli", "agent", "replay", "--file", str(replay_file)]
-        env = {**os.environ, **{"PYTHONPATH": str(ROOT / "src")}}
-        proc = subprocess.run(cmd, cwd=ROOT, env=env, capture_output=True, text=True)
+    def test_cli_help_only_exposes_v3_commands(self):
+        proc = self._run("--help")
         self.assertEqual(proc.returncode, 0, msg=proc.stdout + proc.stderr)
-        self.assertIn("genomad", proc.stdout)
+        help_text = proc.stdout + proc.stderr
+        for cmd in ("validate", "run", "report", "chat"):
+            self.assertIn(cmd, help_text)
+        for removed in ("profile", "agent replay", "agent harvest", "agent chat"):
+            self.assertNotIn(removed, help_text)
 
 
 if __name__ == "__main__":

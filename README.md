@@ -1,143 +1,80 @@
-# GutMicrobeVirus v2
+# GutMicrobeVirus v3
 
-离线优先的病毒组全链路流程，采用 **Snakemake + Singularity + SLURM**，支持 300+ 样本规模批处理，并内置分级自治 Agent 与论文导向报告产物。
+破坏性精简重构版本。目标是把项目从“脚本集合”升级为“可维护的离线检测系统”：
 
-## v2 核心特性
+- Offline-first：断网服务器可运行
+- Snakemake + Singularity + SLURM
+- ChatOps：对话驱动 `validate/run/report` 与 SLURM 查询
+- 仅保留 4 个 CLI 主命令：`gmv validate | run | report | chat`
 
-- 主编排统一为 Snakemake DAG。
-- 面向断网服务器：镜像与数据库均使用本地路径。
-- 统一 CLI：`gmv run / validate / profile / report / agent replay`。
-- 多工具并存：VirSorter、geNomad、CoverM、Bowtie2+Samtools 等由统一配置启停。
-- Agent 分级自治：低风险动作自动执行，高风险仅建议并记录。
-- 报告输出策略：中文说明 + 英文图表。
-
-## 目录结构
-
-```text
-.
-├── config/
-│   ├── pipeline.yaml
-│   └── containers.yaml
-├── workflow/
-│   ├── Snakefile
-│   └── rules/
-├── profiles/
-│   ├── local/
-│   └── slurm/
-├── src/gmv/
-│   ├── cli.py
-│   ├── config_schema.py
-│   ├── validation.py
-│   ├── agent/
-│   ├── reporting/
-│   └── workflow/
-├── tests/
-│   ├── unit/
-│   ├── integration/
-│   └── fixtures/minimal/
-├── docs/
-└── Makefile
-```
-
-## 快速开始
-
-### 1. 环境准备
-
-- Python 3.9+
-- Snakemake（服务器执行建议使用 conda/mamba 预装）
-- Singularity 3.x（或 Apptainer）
-- 本地可访问的 `.sif` 镜像与数据库目录
-
-### 2. 配置文件
-
-1. 修改 `config/pipeline.yaml`：
-- `execution.sample_sheet`
-- `database.*`
-- `execution.profile`（`local` 或 `slurm`）
-
-2. 修改 `config/containers.yaml`：
-- 各工具镜像路径
-
-### 3. 配置验证
+## 30 秒 Quickstart
 
 ```bash
 PYTHONPATH=src python -m gmv.cli validate --config config/pipeline.yaml
+PYTHONPATH=src python -m gmv.cli run --config config/pipeline.yaml --profile local --dry-run --stage all
 ```
 
-### 4. 运行流程
+## 文档入口
 
-本地：
+- 详细前端说明站点：[`docs/index.html`](docs/index.html)
+- 文档导航：[`docs/README.md`](docs/README.md)
+- 服务器运行手册：[`docs/SERVER_RUNBOOK.md`](docs/SERVER_RUNBOOK.md)
+- 架构说明：[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+
+## 命令概览
 
 ```bash
-PYTHONPATH=src python -m gmv.cli run --config config/pipeline.yaml --profile local
+gmv validate --config config/pipeline.yaml
+gmv run --config config/pipeline.yaml --profile local --stage all --dry-run
+gmv report --config config/pipeline.yaml
+gmv chat --config config/pipeline.yaml
 ```
 
-SLURM：
+## ChatOps LLM 配置
+
+1. 环境变量（推荐）
 
 ```bash
-PYTHONPATH=src python -m gmv.cli run --config config/pipeline.yaml --profile slurm
+export GMV_API_KEY="..."
+export GMV_BASE_URL="https://api.openai.com/v1"
+export GMV_MODEL="gpt-4o-mini"
 ```
 
-Dry-run：
+2. 用户配置文件（可选）
 
-```bash
-PYTHONPATH=src python -m gmv.cli run --config config/pipeline.yaml --dry-run
+`~/.config/gmv/llm.yaml`
+
+```yaml
+base_url: "https://api.openai.com/v1"
+model: "gpt-4o-mini"
+api_key_env: "GMV_API_KEY"
+timeout_s: 60
+verify_tls: true
 ```
 
-### 5. 生成报告
+## 破坏性变更（v3）
 
-```bash
-PYTHONPATH=src python -m gmv.cli report --config config/pipeline.yaml
-```
+以下命令已移除，不再兼容：
 
-产物目录：
+- `gmv profile`
+- `gmv agent replay`
+- `gmv agent harvest`
+- `gmv agent chat`
 
-- `reports/manuscript/methods_zh.md`
-- `reports/manuscript/figures/*.svg`（英文图表）
-- `reports/manuscript/tables/*.tsv`
-
-## Agent 回放
-
-```bash
-PYTHONPATH=src python -m gmv.cli agent replay --file results/<run_id>/agent/decisions.jsonl
-```
-
-## 一键发布验收
-
-使用最小模拟数据（离线）：
+## 测试
 
 ```bash
 make test-release
 ```
 
-包含：
+## GitHub Pages
 
-- 配置校验
-- 单元测试
-- 集成测试
-- Snakemake dry-run（若环境未安装 snakemake 会提示跳过）
+推荐使用仓库内置工作流自动部署：
 
-## 输入样本表格式
+1. 打开 `Settings -> Pages`
+2. `Build and deployment -> Source` 选择 `GitHub Actions`
+3. 推送 `main` 分支后自动发布
 
-`sample_sheet` 为 TSV，至少包含以下列：
-
-- `sample`
-- `mode`：`reads` 或 `contigs`
-- `input1`
-- `input2`（`reads` 模式需要）
-- `host`（可选）
-
-示例见：`tests/fixtures/minimal/raw/samples.tsv`
-
-## v1 迁移说明
-
-v2 为破坏式重构，不保留旧入口脚本兼容层。请参考：
-
-- `docs/MIGRATION_V1_TO_V2.md`
-
-## 文档
-
-- `docs/ARCHITECTURE.md`
-- `docs/SERVER_RUNBOOK.md`
-- `docs/MIGRATION_V1_TO_V2.md`
-- `docs/RELEASE_MILESTONES.md`
+说明：
+- 若你还在特性分支（非 `main`）开发，线上主站点 URL 不会立即反映最新内容。
+- 仓库根目录已提供 `index.html` 重定向到文档站点，降低配置不一致导致的空白页问题。

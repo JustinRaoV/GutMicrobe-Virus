@@ -1,0 +1,14 @@
+images:
+  fastp: /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/sif/fastp.sif
+  bowtie2: /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/sif/bowtie2.sif
+  megahit: /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/sif/megahit.sif
+  vsearch: /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/sif/vsearch.sif
+  checkv: /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/sif/checkv.sif
+  virsorter: /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/sif/virsorter2.sif
+  genomad: /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/sif/genomad.sif
+  busco: /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/sif/busco.sif
+  coverm: /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/sif/coverm.sif
+  vclust: /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/sif/vclust.sif
+  seqkit: /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/sif/seqkit.sif
+  phabox2: /cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/sif/phabox2.sif
+

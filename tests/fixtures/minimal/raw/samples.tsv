@@ -1,2 +1,2 @@
 sample	mode	input1	input2	host
-S1	reads	tests/fixtures/minimal/raw/S1_R1.fastq	tests/fixtures/minimal/raw/S1_R2.fastq	human
+S1	reads	S1_R1.fastq	S1_R2.fastq	human

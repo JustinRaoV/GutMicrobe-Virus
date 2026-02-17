@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "gutmicrobevirus-v2"
-version = "2.0.0a0"
-description = "Offline-first viral metagenomics pipeline with Snakemake + Singularity + SLURM"
+name = "gutmicrobevirus"
+version = "3.0.0a0"
+description = "Offline-first viral metagenomics detection system with Snakemake, Singularity, SLURM and ChatOps"
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [

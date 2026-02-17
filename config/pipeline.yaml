@@ -39,6 +39,18 @@ reporting:
 
 resources:
   default_threads: 8
+  # Optional per-tool threads, e.g.:
+  # threads:
+  #   megahit: 16
+  threads: {}
+  # Optional concurrency limits via `snakemake --resources`.
+  # Each tool consumes 1 unit in its rule resources (e.g. `checkv=1`).
+  limits: {}
+  # Offline resource estimation to avoid over-requesting on SLURM.
+  estimation:
+    enabled: true
+    fudge: 1.2
+    overrides: {}
   slurm:
     account: ""
     partition: ""

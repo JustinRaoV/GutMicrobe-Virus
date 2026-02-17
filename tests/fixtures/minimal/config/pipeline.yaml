@@ -4,7 +4,7 @@ execution:
   raw_dir: ../raw
   work_dir: work
   cache_dir: cache
-  results_dir: results/test-run
+  results_dir: results
   reports_dir: reports
   sample_sheet: ../raw/samples.tsv
   use_singularity: true

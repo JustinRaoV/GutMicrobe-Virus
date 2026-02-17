@@ -1,79 +1,49 @@
-#!/bin/bash
-# 测试脚本
+#!/usr/bin/env bash
+set -euo pipefail
 
-# === 单样本测试 ===
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT_DIR"
 
-# 测试1: 从测序文件开始
-echo "测试1: 从测序文件开始"
-python run_upstream.py \
-    /home/raojun/testdata/myR1.fq.gz \
-    /home/raojun/testdata/myR2.fq.gz \
-    --start-from reads \
-    --host hg38 \
-    -o results \
-    -t 16 \
-    --config config/config.yaml \
-    --log-level INFO
+echo "[GMV] v3 test-release (fast, offline)"
+make test-release
 
-# 测试2: 从contigs开始
-echo "测试2: 从contigs文件开始"
-python run_upstream.py \
-    /home/raojun/testdata/sample.contigs.fa \
-    --start-from contigs \
-    -o results \
-    -t 16 \
-    --config config/config.yaml \
-    --log-level INFO
+SMOKE_CONFIG_DEFAULT="config/examples/cfff/pipeline.local.yaml"
+SMOKE_CONFIG="${GMV_SMOKE_CONFIG:-$SMOKE_CONFIG_DEFAULT}"
+SMOKE_CORES="${GMV_SMOKE_CORES:-8}"
 
+run_smoke="${GMV_RUN_SMOKE:-}"
+if [[ -z "$run_smoke" ]]; then
+  # Auto-enable on the known CFFF server layout.
+  if [[ -d "/cpfs01/projects-HDD/cfff-47998b01bebd_HDD/rj_24212030018/sif" ]]; then
+    run_smoke="1"
+  fi
+fi
 
-# === 批量分析测试 ===
+if [[ "$run_smoke" != "1" ]]; then
+  echo ""
+  echo "[GMV] smoke run skipped."
+  echo "Set GMV_RUN_SMOKE=1 to run the real pipeline, e.g.:"
+  echo "  GMV_RUN_SMOKE=1 GMV_SMOKE_CORES=8 bash test.sh"
+  echo "Or select a config:"
+  echo "  GMV_RUN_SMOKE=1 GMV_SMOKE_CONFIG=/path/to/pipeline.yaml bash test.sh"
+  exit 0
+fi
 
-# 测试3: 批量reads分析
-echo "测试3: 批量测序文件分析"
-python make.py /home/raojun/testdata/reads/ \
-    --mode reads \
-    --host hg38 \
-    -t 16 \
-    -o batch_results
-
-# 测试4: 批量contigs分析
-echo "测试4: 批量contigs分析"
-python make.py /home/raojun/testdata/contigs/ \
-    --mode contigs \
-    -t 16 \
-    -o batch_results
-
-
-# === 病毒库构建测试 ===
-
-# 测试5: 从上游结果构建病毒库
-echo "测试5: 从上游结果构建病毒库"
-python viruslib_pipeline.py \
-    --upstream-result results \
-    -t 16 \
-    -o viruslib_result \
-    --config config/config.yaml
-
-# 测试6: 从指定contigs目录构建病毒库
-echo "测试6: 从指定contigs目录构建病毒库"
-python viruslib_pipeline.py \
-    -i /home/raojun/testdata/final_contigs/ \
-    -t 16 \
-    -o viruslib_result_custom \
-    --config config/config.yaml
-
-# 测试7: 检查病毒库结果
-echo "测试7: 检查病毒库结果"
-if [ -f "viruslib_result/2.vclust_dedup/viruslib_nr.fa" ]; then
-    echo "✓ 病毒库生成成功"
-    echo "统计信息:"
-    echo "  原始序列数: $(grep -c "^>" viruslib_result/1.merge_contigs/all_contigs.fa || echo 0)"
-    echo "  去冗余后: $(grep -c "^>" viruslib_result/2.vclust_dedup/viruslib_nr.fa || echo 0)"
-    echo "  前5个vOTU:"
-    grep "^>" viruslib_result/2.vclust_dedup/viruslib_nr.fa | head -5
-else
-    echo "✗ 病毒库生成失败"
+if ! command -v snakemake >/dev/null 2>&1; then
+  echo "[GMV] ERROR: snakemake not found in PATH (required for smoke run)."
+  exit 2
 fi
 
 echo ""
-echo "=== 所有测试完成 ==="
+echo "[GMV] smoke run (direct/local profile)"
+echo "  config: $SMOKE_CONFIG"
+echo "  cores:  $SMOKE_CORES"
+
+PYTHONPATH=src python -m gmv.cli validate --config "$SMOKE_CONFIG"
+PYTHONPATH=src python -m gmv.cli run --config "$SMOKE_CONFIG" --profile local --cores "$SMOKE_CORES"
+PYTHONPATH=src python -m gmv.cli report --config "$SMOKE_CONFIG"
+
+echo ""
+echo "[GMV] smoke outputs:"
+ls -la results || true
+ls -la reports/manuscript 2>/dev/null || true
