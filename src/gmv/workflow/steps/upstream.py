@@ -36,6 +36,11 @@ def _render_cmd(base_cmd: str, argv: list[str]) -> str:
     return " ".join(parts)
 
 
+def _is_container_exec_cmd(base_cmd: str) -> bool:
+    text = base_cmd.strip().lower()
+    return "singularity exec" in text or "apptainer exec" in text
+
+
 def _bowtie2_prefix_exists(prefix: str) -> bool:
     base = Path(prefix)
     bt2 = [f"{base}.{idx}.bt2" for idx in ("1", "2", "3", "4", "rev.1", "rev.2")]
@@ -312,7 +317,7 @@ def _detect_virsorter(args: argparse.Namespace) -> int:
         return 0
 
     if args.virsorter_cmd:
-        cmd_base = [
+        cmd_args = [
             "run",
             "-w",
             args.work_dir,
@@ -321,33 +326,25 @@ def _detect_virsorter(args: argparse.Namespace) -> int:
             "-j",
             str(args.threads),
         ]
+        use_container_mode = _is_container_exec_cmd(args.virsorter_cmd)
         db_path = (args.db or "").strip()
-        if db_path:
+        if not use_container_mode and db_path:
             db_candidate = Path(db_path)
             if db_candidate.exists():
-                cmd_base.extend(["-d", db_path])
+                cmd_args.extend(["-d", db_path])
             else:
                 print(
                     f"[GMV] virsorter db path not found, fallback to tool default DB: {db_path}",
                     flush=True,
                 )
-        cmd_no_conda = _render_cmd(args.virsorter_cmd, [*cmd_base, "--use-conda-off", "all"])
-        log_no_conda = Path(args.work_dir).resolve() / "virsorter.no_conda.log"
-        try:
-            run_cmd(cmd_no_conda, log_path=log_no_conda)
-        except RuntimeError as exc:
-            text = str(exc)
-            needs_conda_retry = "ModuleNotFoundError" in text or "No module named" in text
-            if not needs_conda_retry:
-                raise
+        elif use_container_mode and db_path:
             print(
-                "[GMV] virsorter no-conda mode missing python modules, retry with conda env bootstrap.",
+                "[GMV] virsorter running in container mode: ignore external -d and use container/default DB.",
                 flush=True,
             )
-            conda_prefix = str((Path(args.work_dir).resolve() / ".snakemake" / "conda").resolve())
-            cmd_with_conda = _render_cmd(args.virsorter_cmd, [*cmd_base, "all", "--conda-prefix", conda_prefix])
-            log_conda = Path(args.work_dir).resolve() / "virsorter.conda.log"
-            run_cmd(cmd_with_conda, log_path=log_conda)
+        cmd = _render_cmd(args.virsorter_cmd, [*cmd_args, "all"])
+        log_path = Path(args.work_dir).resolve() / "virsorter.run.log"
+        run_cmd(cmd, log_path=log_path)
 
         work_dir = Path(args.work_dir)
         candidates = [
