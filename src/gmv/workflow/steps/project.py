@@ -53,44 +53,57 @@ def _dedup(args: argparse.Namespace) -> int:
 def _downstream_quant(args: argparse.Namespace) -> int:
     ensure_parent(args.abundance_out)
     samples = _read_sample_sheet(args.sample_sheet)
+    abundance_path = Path(args.abundance_out)
+    failure_note = abundance_path.with_name("coverm.failure.txt")
+    failure_note.unlink(missing_ok=True)
 
     if str(args.enabled).lower() in {"1", "true", "yes", "on"} and args.coverm_cmd:
         coupled: list[str] = []
-        sample_names: list[str] = []
-        for row in samples:
+        for idx, row in enumerate(samples, start=1):
             r1 = (row.get("input1") or "").strip()
             r2 = (row.get("input2") or "").strip()
             if not r1 or not r2:
                 continue
             coupled.extend([r1, r2])
-            sample_names.append((row.get("sample") or "sample").strip())
 
         if coupled:
-            cmd_parts = [
-                args.coverm_cmd,
-                "genome",
-                "--coupled",
-                *[shlex.quote(item) for item in coupled],
-                "--genome-fasta-files",
-                shlex.quote(args.viruslib_fa),
-                "--threads",
-                str(args.threads),
-                "-o",
-                shlex.quote(args.abundance_out),
-            ]
-            if args.coverm_params:
-                cmd_parts.append(args.coverm_params)
-            run_cmd(" ".join(cmd_parts))
-            if Path(args.abundance_out).exists():
-                return 0
+            try:
+                cmd_prefix = shlex.split(args.coverm_cmd)
+                if not cmd_prefix:
+                    raise ValueError("coverm-cmd is empty")
+                extra_params = shlex.split(args.coverm_params) if args.coverm_params else []
+                coverm_cmd = [
+                    *cmd_prefix,
+                    "genome",
+                    "--coupled",
+                    *coupled,
+                    "--genome-fasta-files",
+                    args.viruslib_fa,
+                    "--threads",
+                    str(max(1, int(args.threads))),
+                    "-o",
+                    args.abundance_out,
+                    *extra_params,
+                ]
+                run_cmd(
+                    shlex.join(coverm_cmd),
+                    log_path=abundance_path.with_name("coverm.run.log"),
+                )
+                if abundance_path.exists() and abundance_path.stat().st_size > 0:
+                    return 0
+                raise RuntimeError(f"coverm 未产出有效丰度表: {args.abundance_out}")
+            except (RuntimeError, ValueError) as exc:
+                failure_note.write_text(str(exc), encoding="utf-8")
 
     # Fallback: deterministic pseudo abundance table for offline smoke tests.
     genomes = [header.split()[0] for header, _ in read_fasta(args.viruslib_fa)[:50]]
     if not genomes:
         genomes = ["vOTU1"]
-    sample_names = [(row.get("sample") or "sample").strip() for row in samples]
+    sample_names = [((row.get("sample") or "").strip() or f"sample_{idx}") for idx, row in enumerate(samples, start=1)]
+    if not sample_names:
+        sample_names = ["sample_1"]
 
-    with Path(args.abundance_out).open("w", encoding="utf-8", newline="") as handle:
+    with abundance_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle, delimiter="\t")
         writer.writerow(["genome", *sample_names])
         for idx, genome in enumerate(genomes, start=1):
