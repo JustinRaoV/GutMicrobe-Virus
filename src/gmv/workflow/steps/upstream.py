@@ -367,6 +367,14 @@ def _detect_virsorter(args: argparse.Namespace) -> int:
             failure_msg = [f"command_error: {exc}", f"main_log: {log_path}"]
             if detail_path:
                 failure_msg.append(f"inner_log: {detail_path}")
+                inner_file = Path(detail_path)
+                if inner_file.exists():
+                    inner_lines = [line.strip() for line in inner_file.read_text(encoding="utf-8", errors="ignore").splitlines() if line.strip()]
+                    if len(inner_lines) <= 1 and any(line.startswith("# HMMER") for line in inner_lines):
+                        failure_msg.append(
+                            "hint: inner_log only contains HMMER banner; hmmsearch likely terminated by external signal "
+                            "(OOM/cgroup limit/timeout). Try fewer virsorter threads or run single-sample upstream first."
+                        )
             failure_note.write_text("\n".join(failure_msg) + "\n", encoding="utf-8")
             print(
                 f"[GMV] virsorter failed, fallback to passthrough contigs. see {failure_note}",
