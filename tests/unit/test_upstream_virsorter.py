@@ -87,3 +87,24 @@ def test_detect_virsorter_container_mode_ignores_external_db(tmp_path: Path, mon
     assert "-d" not in tokens
     assert "all" in tokens
     assert Path(args.out_fa).exists()
+
+
+def test_detect_virsorter_fails_open_with_failure_note(tmp_path: Path, monkeypatch) -> None:
+    args = _mk_args(tmp_path)
+
+    def _fake_run(cmd: str, cwd: str | None = None, log_path: str | None = None) -> None:
+        raise RuntimeError(
+            "命令失败(1): virsorter\n"
+            "See error details in /tmp/example.splithmmtbl.log\n"
+            "[full log]\n/tmp/virsorter.run.log"
+        )
+
+    monkeypatch.setattr(upstream, "run_cmd", _fake_run)
+    rc = upstream._detect_virsorter(args)
+
+    assert rc == 0
+    assert Path(args.out_fa).exists()
+    failure_note = Path(args.work_dir) / "virsorter.failure.txt"
+    assert failure_note.exists()
+    text = failure_note.read_text(encoding="utf-8")
+    assert "inner_log: /tmp/example.splithmmtbl.log" in text

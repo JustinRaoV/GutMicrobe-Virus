@@ -343,15 +343,38 @@ def _detect_virsorter(args: argparse.Namespace) -> int:
                 flush=True,
             )
         cmd = _render_cmd(args.virsorter_cmd, [*cmd_args, "all"])
-        log_path = Path(args.work_dir).resolve() / "virsorter.run.log"
-        run_cmd(cmd, log_path=log_path)
-
         work_dir = Path(args.work_dir)
         candidates = [
             work_dir / "final-viral-combined.fa",
             work_dir / "final-viral-combined.fasta",
             work_dir / "final_viral_combined.fa",
         ]
+        log_path = Path(args.work_dir).resolve() / "virsorter.run.log"
+        try:
+            run_cmd(cmd, log_path=log_path)
+        except RuntimeError as exc:
+            for candidate in candidates:
+                if candidate.exists():
+                    copy_or_decompress(candidate, args.out_fa)
+                    return 0
+
+            err_text = str(exc)
+            detail_path: str | None = None
+            match = re.search(r"See error details in ([^\n\"]+)", err_text)
+            if match:
+                detail_path = match.group(1).strip()
+            failure_note = work_dir / "virsorter.failure.txt"
+            failure_msg = [f"command_error: {exc}", f"main_log: {log_path}"]
+            if detail_path:
+                failure_msg.append(f"inner_log: {detail_path}")
+            failure_note.write_text("\n".join(failure_msg) + "\n", encoding="utf-8")
+            print(
+                f"[GMV] virsorter failed, fallback to passthrough contigs. see {failure_note}",
+                flush=True,
+            )
+            copy_or_decompress(args.contigs_in, args.out_fa)
+            return 0
+
         for candidate in candidates:
             if candidate.exists():
                 copy_or_decompress(candidate, args.out_fa)
