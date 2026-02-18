@@ -312,7 +312,7 @@ def _detect_virsorter(args: argparse.Namespace) -> int:
         return 0
 
     if args.virsorter_cmd:
-        cmd_args = [
+        cmd_base = [
             "run",
             "-w",
             args.work_dir,
@@ -325,15 +325,29 @@ def _detect_virsorter(args: argparse.Namespace) -> int:
         if db_path:
             db_candidate = Path(db_path)
             if db_candidate.exists():
-                cmd_args.extend(["-d", db_path])
+                cmd_base.extend(["-d", db_path])
             else:
                 print(
                     f"[GMV] virsorter db path not found, fallback to tool default DB: {db_path}",
                     flush=True,
                 )
-        cmd_args.extend(["--use-conda-off", "all"])
-        cmd = _render_cmd(args.virsorter_cmd, cmd_args)
-        run_cmd(cmd)
+        cmd_no_conda = _render_cmd(args.virsorter_cmd, [*cmd_base, "--use-conda-off", "all"])
+        log_no_conda = Path(args.work_dir).resolve() / "virsorter.no_conda.log"
+        try:
+            run_cmd(cmd_no_conda, log_path=log_no_conda)
+        except RuntimeError as exc:
+            text = str(exc)
+            needs_conda_retry = "ModuleNotFoundError" in text or "No module named" in text
+            if not needs_conda_retry:
+                raise
+            print(
+                "[GMV] virsorter no-conda mode missing python modules, retry with conda env bootstrap.",
+                flush=True,
+            )
+            conda_prefix = str((Path(args.work_dir).resolve() / ".snakemake" / "conda").resolve())
+            cmd_with_conda = _render_cmd(args.virsorter_cmd, [*cmd_base, "all", "--conda-prefix", conda_prefix])
+            log_conda = Path(args.work_dir).resolve() / "virsorter.conda.log"
+            run_cmd(cmd_with_conda, log_path=log_conda)
 
         work_dir = Path(args.work_dir)
         candidates = [

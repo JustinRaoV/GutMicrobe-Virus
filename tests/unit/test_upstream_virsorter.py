@@ -68,3 +68,32 @@ def test_detect_virsorter_runs_without_d_when_db_missing(tmp_path: Path, monkeyp
     assert "--use-conda-off" in tokens
     assert "all" in tokens
     assert Path(args.out_fa).exists()
+
+
+def test_detect_virsorter_retries_with_conda_when_no_conda_mode_lacks_modules(
+    tmp_path: Path, monkeypatch
+) -> None:
+    args = _mk_args(tmp_path)
+    called: list[str] = []
+
+    def _fake_run(cmd: str, cwd: str | None = None, log_path: str | None = None) -> None:
+        called.append(cmd)
+        if "--use-conda-off" in cmd:
+            raise RuntimeError("命令失败(1): virsorter\nModuleNotFoundError: No module named 'screed'")
+        work_dir = Path(args.work_dir)
+        work_dir.mkdir(parents=True, exist_ok=True)
+        (work_dir / "final-viral-combined.fa").write_text(">v3\nAAAA\n", encoding="utf-8")
+
+    monkeypatch.setattr(upstream, "run_cmd", _fake_run)
+    rc = upstream._detect_virsorter(args)
+
+    assert rc == 0
+    assert len(called) == 2
+    first = shlex.split(called[0])
+    second = shlex.split(called[1])
+    assert "--use-conda-off" in first
+    assert "all" in first
+    assert "--use-conda-off" not in second
+    assert "all" in second
+    assert "--conda-prefix" in second
+    assert Path(args.out_fa).exists()
